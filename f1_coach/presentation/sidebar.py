@@ -196,7 +196,7 @@ class _ProfileBadgeButton(QFrame):
             if not pixmap.isNull():
                 self._photo_pixmap = pixmap
                 self._label.setPixmap(pixmap)
-                self._label.setStyleSheet("background: transparent;")
+                self._label.setStyleSheet("background: transparent;border: none;")
                 return
 
         self._photo_pixmap = None
@@ -210,9 +210,9 @@ class _ProfileBadgeButton(QFrame):
 
     def _set_ring(self, active: bool) -> None:
         if active:
-            self.setStyleSheet(f"QFrame {{ border: 2px solid {self._accent}; border-radius: 22px; }}")
+            self.setStyleSheet(f"QFrame {{ border: 2px solid {self._accent}; border-radius: 22px; background: transparent; }}")
         else:
-            self.setStyleSheet("QFrame { border: 1px solid transparent; border-radius: 22px; }")
+            self.setStyleSheet("QFrame { border: 1px solid transparent; border-radius: 22px;background: transparent; }")
 
     def enterEvent(self, event) -> None:  # type: ignore[no-untyped-def]
         self._set_ring(True)
