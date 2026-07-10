@@ -1,5 +1,7 @@
 # KOACH
 
+<img width="200" alt="koach_siyah" src="https://github.com/user-attachments/assets/fe0823af-b6aa-43ad-9f8a-8d722ef38ba6" />
+
 **F1 25 telemetry analysis and AI-powered post-session coaching — a native desktop app.**
 
 KOACH listens to F1 25's UDP telemetry broadcast, stores every lap locally, visualizes speed/throttle/brake traces with interactive charts, and generates sector-based AI coaching feedback after each session — entirely passive, with zero interference with the game.
