@@ -58,6 +58,9 @@ class MainWindow(QMainWindow):
         self._telemetry_receiver = telemetry_receiver
 
         self.setWindowTitle("KOACH")
+        icon_path = Path(__file__).parent / "assets" / "logos" / "koach_siyah.ico"
+        if icon_path.exists():
+            self.setWindowIcon(QIcon(str(icon_path)))
         self.resize(1280, 900)
         
         icon_path = _LOGO_DIR /"koach_siyah.png"

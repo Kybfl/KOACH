@@ -9,9 +9,10 @@ ThemeManager, sonrasındaki her runtime değişikliğini yönetir.
 """
 
 import sys
+import ctypes
 
+from pathlib import Path
 from PyQt6.QtWidgets import QApplication
-
 from f1_coach.infrastructure.logging.logger import get_logger
 from f1_coach.infrastructure.storage.orm.database import init_db
 
@@ -20,6 +21,11 @@ logger = get_logger(__name__)
 
 def run() -> None:
     """KOACH masaüstü uygulamasını başlatır."""
+    if sys.platform == "win32":
+        try:
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("koach.app")
+        except Exception:
+            pass
     init_db()
     logger.info("KOACH GUI starting...")
 
@@ -49,9 +55,12 @@ def run() -> None:
     from f1_coach.presentation.main_window import MainWindow
 
     app = QApplication(sys.argv)
-    app.setStyleSheet(theme_manager.build_stylesheet())
-    theme_manager.theme_changed.connect(lambda: app.setStyleSheet(theme_manager.build_stylesheet()))
-
+    icon_path = Path(__file__).parent / "assets" / "logos" / "koach_siyah.ico"
+    if icon_path.exists():
+        from PyQt6.QtGui import QIcon
+        app.setWindowIcon(QIcon(str(icon_path)))
+        app.setStyleSheet(theme_manager.build_stylesheet())
+        theme_manager.theme_changed.connect(lambda: app.setStyleSheet(theme_manager.build_stylesheet()))
     profile_repo = bootstrap_profile_repo
     session_repo = SQLiteSessionRepository()
     lap_repo = SQLiteLapRepository()

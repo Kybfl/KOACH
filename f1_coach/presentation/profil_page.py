@@ -50,13 +50,20 @@ logger = get_logger(__name__)
 
 # Sabit dropdown listeleri — veri tutarlılığı için manuel giriş yok (UI dokümanı §2.6)
 _TEAMS = [
-    "Red Bull Racing", "Ferrari", "Mercedes", "McLaren", "Aston Martin",
-    "Alpine", "Williams", "RB", "Haas", "Kick Sauber",
+    "Mercedes", "Ferrari", "Red Bull Racing", "Williams", "Aston Martin",
+    "Alpine", "RB", "Haas", "McLaren", "Sauber",
 ]
 _DRIVERS = [
-    "Max Verstappen", "Sergio Perez", "Charles Leclerc", "Carlos Sainz",
-    "Lewis Hamilton", "George Russell", "Lando Norris", "Oscar Piastri",
+    "Max Verstappen", "Yuki Tsunoda",
+    "Charles Leclerc", "Lewis Hamilton",
+    "George Russell", "Andrea Kimi Antonelli",
+    "Lando Norris", "Oscar Piastri",
     "Fernando Alonso", "Lance Stroll",
+    "Pierre Gasly", "Franco Colapinto",
+    "Carlos Sainz", "Alex Albon",
+    "Liam Lawson", "Isack Hadjar",
+    "Esteban Ocon", "Oliver Bearman",
+    "Nico Hulkenberg", "Gabriel Bortoleto",
 ]
 _TRACKS = [track.display_name for track in TrackName if track != TrackName.UNKNOWN]
 
@@ -69,7 +76,7 @@ _TEAM_COLORS = {
     "Alpine": "#FF87BC",
     "Williams": "#64C4FF",
     "Haas": "#B6BABD",
-    "Kick Sauber": "#52E252",
+    "Sauber": "#52E252",
     "RB": "#6692FF",
 }
 _DEFAULT_TEAM_COLOR = PURPLE
