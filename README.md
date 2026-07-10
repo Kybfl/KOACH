@@ -1,6 +1,6 @@
 # KOACH
 
-<img width="800" alt="koach_siyah" src="https://github.com/user-attachments/assets/fe0823af-b6aa-43ad-9f8a-8d722ef38ba6" />
+<img width="400" alt="koach_siyah" src="https://github.com/user-attachments/assets/fe0823af-b6aa-43ad-9f8a-8d722ef38ba6" />
 
 **F1 25 telemetry analysis and AI-powered post-session coaching — a native desktop app.**
 
