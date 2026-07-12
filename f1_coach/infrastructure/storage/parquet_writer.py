@@ -127,6 +127,50 @@ def write_car_status(
     )
     return str(output_path.resolve())
 
+def write_positions(
+    session_uid: str,
+    lap_number: int,
+    positions: list[tuple[float, float, float]],
+) -> str:
+    """Bir turun pist üzerindeki (track_position, x, z) noktalarını Parquet'e yazar.
+
+    Args:
+        session_uid: UDP session UID string.
+        lap_number:  1-tabanlı tur numarası.
+        positions:   (track_position, pos_x, pos_z) üçlülerinin listesi.
+
+    Returns:
+        Yazılan dosyanın mutlak yolu.
+
+    Raises:
+        ValueError: positions boşsa.
+    """
+    if not positions:
+        raise ValueError(f"No position points to write for lap {lap_number}.")
+
+    df = pd.DataFrame(positions, columns=["track_position", "pos_x", "pos_z"])
+
+    output_path = _lap_dir(session_uid) / f"lap_{lap_number:03d}_positions.parquet"
+    table = pa.Table.from_pandas(df, preserve_index=False)
+    pq.write_table(table, output_path, compression="snappy")
+
+    logger.debug(
+        "Positions written: session=%s lap=%d rows=%d path=%s",
+        session_uid, lap_number, len(positions), output_path,
+    )
+    return str(output_path.resolve())
+
+
+def read_positions(file_path: str) -> pd.DataFrame:
+    """Bir pozisyon Parquet dosyasını DataFrame olarak okur.
+
+    Args:
+        file_path: Parquet dosyasının yolu.
+
+    Returns:
+        track_position, pos_x, pos_z kolonlarını içeren DataFrame.
+    """
+    return pq.read_table(file_path).to_pandas()
 
 def read_telemetry(file_path: str) -> pd.DataFrame:
     """Read a telemetry Parquet file back into a DataFrame.

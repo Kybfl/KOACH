@@ -16,6 +16,7 @@ from f1_coach.infrastructure.udp.packets import (
     PacketCarTelemetryData,
     PacketHeader,
     PacketLapData,
+    PacketMotionData,
     PacketSessionData,
 )
 
@@ -48,6 +49,9 @@ def _parse(struct_type: type, data: bytes):
         logger.debug("Parse error for %s: %s", struct_type.__name__, exc)
         return None
 
+def parse_motion(data: bytes) -> PacketMotionData | None:
+    """Parse Packet ID 0 — Motion Data."""
+    return _parse(PacketMotionData, data)
 
 def parse_session(data: bytes) -> PacketSessionData | None:
     """Parse Packet ID 1 — Session Data."""

@@ -115,33 +115,33 @@ class TrackName(Enum):
     """
 
     UNKNOWN = -1
-    MELBOURNE = 0
-    SHANGHAI = 2
-    BAHRAIN = 3
-    BARCELONA = 4
-    MONACO = 5
-    MONTREAL = 6
-    SILVERSTONE = 7
-    BUDAPEST = 9
-    SPA = 10
-    MONZA = 11
-    SINGAPORE = 12
-    SUZUKA = 13
-    ABU_DHABI = 14
-    AUSTIN = 15
-    SAO_PAULO = 16
-    AUSTRIA = 17
-    MEXICO_CITY = 19
-    BAKU = 20
-    ZANDVOORT = 26
+    MELBOURNE = 0 #
+    SHANGHAI = 2 #
+    BAHRAIN = 3 #
+    BARCELONA = 4 #
+    MONACO = 5 #
+    MONTREAL = 6 #
+    SILVERSTONE = 7 #
+    BUDAPEST = 9 #
+    SPA = 10 #
+    MONZA = 11 #
+    SINGAPORE = 12 #
+    SUZUKA = 13 #
+    ABU_DHABI = 14 #
+    AUSTIN = 15 #
+    SAO_PAULO = 16 #
+    AUSTRIA = 17 #
+    MEXICO_CITY = 19 #
+    BAKU = 20 #
+    ZANDVOORT = 26 #
     IMOLA = 27
-    JEDDAH = 29
-    MIAMI = 30
-    LAS_VEGAS = 31
-    LUSAIL = 32
-    SILVERSTONE_REVERSE = 39
-    AUSTRIA_REVERSE = 40
-    ZANDVOORT_REVERSE = 41
+    JEDDAH = 29 #
+    MIAMI = 30 #
+    LAS_VEGAS = 31 #
+    LUSAIL = 32 #
+    SILVERSTONE_REVERSE = 39 #
+    AUSTRIA_REVERSE = 40 #
+    ZANDVOORT_REVERSE = 41 #
 
     @property
     def display_name(self) -> str:

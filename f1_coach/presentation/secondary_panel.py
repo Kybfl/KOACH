@@ -1,19 +1,18 @@
-"""SecondaryPanel — Katman 2: kayar, F1 25'e özgü ikincil panel.
+"""SecondaryPanel — Katman 2: yatay sekme çubuğu, F1 25'e özgü ikincil panel.
 
-Claude.ai'daki sohbet geçmişi paneli gibi davranır: yalnızca F1 25 Landing
-sayfasındaki "Başla" butonuna basıldıktan sonra açılır, kapandığında içerik
-alanı tam genişliğe yayılır. Bu widget varsayılan olarak gizlidir —
-MainWindow, "Başla" sinyali geldiğinde show() çağırır.
+Yalnızca F1 25 Landing sayfasındaki "Başla" butonuna basıldıktan sonra açılır.
+Yatay yerleşim, dikey sürüme göre içerik alanı için daha fazla genişlik bırakır
+— özellikle Lap Analizi'ndeki grafikler için önemli.
 """
 
 from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtWidgets import QPushButton, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QHBoxLayout, QPushButton, QWidget
 
-_PANEL_WIDTH = 220
+_PANEL_HEIGHT = 48
 
 
 class SecondaryPanel(QWidget):
-    """F1 25 sekmelerini barındıran kayar panel.
+    """F1 25 sekmelerini barındıran yatay sekme çubuğu.
 
     Signals:
         live_session_clicked:  "Canlı Session" sekmesi seçildi.
@@ -27,12 +26,12 @@ class SecondaryPanel(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setFixedWidth(_PANEL_WIDTH)
+        self.setFixedHeight(_PANEL_HEIGHT)
         self.setObjectName("SecondaryPanel")
         self.hide()  # Yalnızca "Başla" sonrası gösterilir.
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 16, 12, 16)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(16, 8, 16, 8)
         layout.setSpacing(8)
 
         self._live_session_button = QPushButton("Canlı Session")
@@ -58,9 +57,6 @@ class SecondaryPanel(QWidget):
         self.hide()
 
     def set_navigation_locked(self, locked: bool) -> None:
-        """Session kaydı sürerken Lap Analizi / Session Geçmişi sekmelerini kilitler.
-
-        Canlı Session sekmesi kilitlenmez — zaten üzerinde bulunulan ekran.
-        """
+        """Session kaydı sürerken Lap Analizi / Session Geçmişi sekmelerini kilitler."""
         self._lap_analysis_button.setEnabled(not locked)
         self._session_history_button.setEnabled(not locked)

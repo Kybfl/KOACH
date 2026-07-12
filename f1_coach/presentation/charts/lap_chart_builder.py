@@ -7,10 +7,16 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from f1_coach.domain.models.enums import TrackName
 
 _PURPLE = "#9B30FF"   # F1 resmi en iyi sektör/tur rengi (UI dokümanı §3.3)
 _COMPARISON_COLOR = "#00BFFF"
 
+def _strip_internal_scroll(html: str) -> str:
+    """Plotly'nin ürettiği HTML sayfasının kendi içinde scrollbar göstermesini
+    engeller — dıştaki QScrollArea tek scroll kaynağı olsun diye."""
+    style_tag = "<style>html,body{margin:0;padding:0;overflow:hidden;}</style>"
+    return html.replace("<head>", f"<head>{style_tag}", 1)
 
 def _build_figure(traces_per_row: list[list[go.Scatter]], row_titles: list[str]) -> go.Figure:
     fig = make_subplots(
@@ -44,7 +50,7 @@ def build_single_lap_html(telemetry_df: pd.DataFrame, lap_label: str) -> str:
         [speed_trace, throttle_brake_traces, gear_trace],
         ["Hız (km/s)", "Gaz / Fren (%)", "Vites"],
     )
-    return fig.to_html(include_plotlyjs="cdn", full_html=True)
+    return _strip_internal_scroll(fig.to_html(include_plotlyjs="cdn", full_html=True))
 
 def _compute_delta_trace(
     df_a: pd.DataFrame, df_b: pd.DataFrame, label_a: str, label_b: str
@@ -120,4 +126,85 @@ def build_comparison_html(
         [speed_traces, throttle_traces + brake_traces, delta_trace],
         ["Hız (km/s)", "Gaz / Fren (%)", "Zaman Farkı (s)"],
     )
-    return fig.to_html(include_plotlyjs="cdn", full_html=True)
+    return _strip_internal_scroll(fig.to_html(include_plotlyjs="cdn", full_html=True))
+
+def build_track_map_html(
+    positions_a: pd.DataFrame,
+    positions_b: pd.DataFrame,
+    telemetry_a: pd.DataFrame,
+    telemetry_b: pd.DataFrame,
+    label_a: str,
+    label_b: str,
+    track: TrackName | None = None,
+) -> str:
+    """İki turun pist üzerindeki yolunu (racing line) üst üste çizer.
+
+    Pist SVG'si, sürülen turun kendi konum verisinden otomatik hesaplanan
+    bir sınır kutusuna göre, X ve Z için AYNI ölçekle (uniform scale)
+    yerleştirilir — eksenler ayrı ayrı ölçeklenirse virajlar yamuk/eliptik
+    görünür, bu yüzden tek ortak ölçek şart.
+    """
+    def _with_speed(positions: pd.DataFrame, telemetry: pd.DataFrame) -> pd.DataFrame:
+        positions = positions.sort_values("track_position")
+        telemetry = telemetry.sort_values("track_position")
+        return pd.merge_asof(
+            positions, telemetry[["track_position", "speed"]],
+            on="track_position", direction="nearest",
+        )
+
+    merged_a = _with_speed(positions_a, telemetry_a)
+    merged_b = _with_speed(positions_b, telemetry_b)
+
+    fig = go.Figure()
+
+    if track is not None:
+        from f1_coach.presentation.charts.track_registry import get_track_svg_data_uri
+
+        svg_uri = get_track_svg_data_uri(track)
+        if svg_uri:
+            all_x = pd.concat([merged_a["pos_x"], merged_b["pos_x"]])
+            all_z = pd.concat([merged_a["pos_z"], merged_b["pos_z"]])
+
+            min_x, max_x = float(all_x.min()), float(all_x.max())
+            min_z, max_z = float(all_z.min()), float(all_z.max())
+
+            center_x = (min_x + max_x) / 2.0
+            center_z = (min_z + max_z) / 2.0
+
+            # Tek ortak ölçek: verinin en geniş boyutu + %15 pay, 500px SVG'ye sığdırılır.
+            data_extent = max(max_x - min_x, max_z - min_z) * 1.15
+            half_extent = max(data_extent, 1.0) / 2.0
+
+            x_left = center_x - half_extent
+            z_top = center_z + half_extent  # SVG y ekseni ters olabileceği için üst=büyük z
+
+            fig.add_layout_image(dict(
+                source=svg_uri, xref="x", yref="y",
+                x=x_left, y=z_top,
+                sizex=half_extent * 2, sizey=half_extent * 2,
+                xanchor="left", yanchor="top",
+                sizing="contain", layer="below", opacity=0.6,
+            ))
+
+    fig.add_trace(go.Scatter(
+        x=merged_a["pos_x"], y=merged_a["pos_z"],
+        mode="lines", name=label_a, line=dict(color=_PURPLE, width=3),
+        customdata=merged_a["speed"],
+        hovertemplate=f"{label_a}<br>Hız: %{{customdata:.0f}} km/s<extra></extra>",
+    ))
+    fig.add_trace(go.Scatter(
+        x=merged_b["pos_x"], y=merged_b["pos_z"],
+        mode="lines", name=label_b, line=dict(color=_COMPARISON_COLOR, width=3),
+        customdata=merged_b["speed"],
+        hovertemplate=f"{label_b}<br>Hız: %{{customdata:.0f}} km/s<extra></extra>",
+    ))
+
+    fig.update_yaxes(scaleanchor="x", scaleratio=1)
+    fig.update_layout(
+        height=550, showlegend=True,
+        margin=dict(l=20, r=20, t=20, b=20),
+        template="plotly_dark",
+        xaxis_title=None, yaxis_title=None,
+        xaxis_showticklabels=False, yaxis_showticklabels=False,
+    )
+    return _strip_internal_scroll(fig.to_html(include_plotlyjs="cdn", full_html=True))

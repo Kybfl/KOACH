@@ -57,6 +57,7 @@ class SQLiteLapRepository:
                 orm.air_temperature = lap.air_temperature
                 orm.telemetry_file = lap.telemetry_file
                 orm.status_file = lap.status_file
+                orm.position_file = lap.position_file
             else:
                 orm = lap_to_orm(lap)
                 db.add(orm)

@@ -92,6 +92,7 @@ def lap_to_domain(orm: LapORM) -> Lap:
         air_temperature=orm.air_temperature,
         telemetry_file=orm.telemetry_file,
         status_file=orm.status_file,
+        position_file=orm.position_file,
         id=orm.id,
         session_id=orm.session_id,
     )
@@ -114,6 +115,7 @@ def lap_to_orm(domain: Lap) -> LapORM:
         air_temperature=domain.air_temperature,
         telemetry_file=domain.telemetry_file,
         status_file=domain.status_file,
+        position_file=domain.position_file,
     )
     if domain.is_persisted:
         kwargs["id"] = domain.id

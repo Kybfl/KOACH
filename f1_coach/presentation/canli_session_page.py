@@ -109,24 +109,8 @@ class CanliSessionPage(QWidget):
 
         # --- Tamamlanan Tur Listesi ---
         self._lap_list = QListWidget()
-        self._lap_list.setMaximumHeight(180)
         layout.addWidget(self._lap_list)
         
-        # --- 2D Pist Haritası — yer tutucu.
-        # Gerçek harita, Motion paketi (Packet ID 0) entegrasyonu tamamlandığında
-        # buraya gelecek; şimdilik alan ayrılıyor.
-        self._map_placeholder = QFrame()
-        self._map_placeholder.setStyleSheet(
-            f"QFrame {{ background-color: {theme_module.SURFACE}; border: 1px solid {theme_module.BORDER};"
-            "  border-radius: 10px; }"
-        )
-        map_placeholder_layout = QVBoxLayout(self._map_placeholder)
-        map_label = QLabel("2D Pist Haritası — yakında")
-        map_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        map_label.setStyleSheet(f"color: {theme_module.TEXT_MUTED}; font-size: 13px; background: transparent;")
-        map_placeholder_layout.addWidget(map_label)
-        layout.addWidget(self._map_placeholder, stretch=1)
-
         # --- Session'ı Bitir ---
         self._end_button = QPushButton("⏹ Bitir")
         self._end_button.setEnabled(False)

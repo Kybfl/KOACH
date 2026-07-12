@@ -24,11 +24,13 @@ from f1_coach.infrastructure.udp.parsers.packet_parsers import (
     parse_car_telemetry,
     parse_header,
     parse_lap_data,
+    parse_motion,
     parse_session,
 )
 from f1_coach.infrastructure.udp.session_manager import SessionManager
 from f1_coach.infrastructure.udp.telemetry_mapper import (
     map_assist_config,
+    map_car_position,
     map_car_status_point,
     map_lap_distance,
     map_lap_validity,
@@ -145,7 +147,9 @@ class TelemetryReceiver:
         self._player_index = header.m_playerCarIndex
         packet_id = header.m_packetId
 
-        if packet_id == 1:
+        if packet_id == 0:
+            self._handle_motion(data)
+        elif packet_id == 1:
             self._handle_session(data)
         elif packet_id == 2:
             self._handle_lap(data, header)
@@ -159,6 +163,14 @@ class TelemetryReceiver:
     # Per-packet handlers
     # ------------------------------------------------------------------
 
+    def _handle_motion(self, data: bytes) -> None:
+        packet = parse_motion(data)
+        if packet is None:
+            return
+        car = packet.m_carMotionData[self._player_index]
+        x, z = map_car_position(car)
+        self._manager.on_car_position(x, z, self._track_position)
+    
     def _handle_session(self, data: bytes) -> None:
         packet = parse_session(data)
         if packet is None:

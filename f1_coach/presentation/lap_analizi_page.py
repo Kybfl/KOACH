@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
     QHeaderView,
     QLabel,
     QPushButton,
+    QScrollArea,
     QStackedWidget,
     QTableWidget,
     QTableWidgetItem,
@@ -25,16 +26,22 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from f1_coach.domain.models.enums import TrackName
 from f1_coach.presentation.theme import BORDER, SURFACE, TEXT_SECONDARY, rgba
 from f1_coach.application.coaching_engine import CoachingEngine
 from f1_coach.domain.models.lap import Lap
 from f1_coach.domain.ports.lap_repository import LapRepository
 from f1_coach.domain.ports.session_repository import SessionRepository
 from f1_coach.infrastructure.logging.logger import get_logger
-from f1_coach.infrastructure.storage.parquet_writer import read_telemetry
+from f1_coach.infrastructure.storage.parquet_writer import read_telemetry, read_positions
 from f1_coach.presentation.charts.lap_chart_builder import (
     build_comparison_html,
     build_single_lap_html,
+)
+from f1_coach.presentation.charts.lap_chart_builder import (
+    build_comparison_html,
+    build_single_lap_html,
+    build_track_map_html,
 )
 from f1_coach.presentation.charts.plotly_chart_widget import PlotlyChartWidget
 
@@ -150,17 +157,20 @@ class LapDetailWidget(QWidget):
         self._header_label = QLabel("")
         self._header_label.setStyleSheet("font-size: 16px; font-weight: 700;")
         header_row.addWidget(self._header_label)
-        header_row.addStretch(1)
         layout.addLayout(header_row)
 
         self._tabs = QTabWidget()
         layout.addWidget(self._tabs)
 
-        # --- Sekme 1: Tek Lap Analizi ---
-        single_tab = QWidget()
-        single_layout = QVBoxLayout(single_tab)
+        # --- Sekme 1: Tek Lap Analizi (tüm sayfa kaydırılabilir) ---
+        single_scroll = QScrollArea()
+        single_scroll.setWidgetResizable(True)
+        single_content = QWidget()
+        single_scroll.setWidget(single_content)
+        single_layout = QVBoxLayout(single_content)
         self._single_chart = PlotlyChartWidget()
-        single_layout.addWidget(self._single_chart, stretch=1)
+        self._single_chart.setFixedHeight(650)
+        single_layout.addWidget(self._single_chart)
 
         self._single_ai_button = QPushButton("AI Analizi Oluştur")
         self._single_ai_button.clicked.connect(self._on_generate_single_feedback)
@@ -171,22 +181,33 @@ class LapDetailWidget(QWidget):
         self._single_feedback_text.setMaximumHeight(160)
         single_layout.addWidget(self._single_feedback_text)
 
-        self._tabs.addTab(single_tab, "Tek Lap Analizi")
+        self._tabs.addTab(single_scroll, "Tek Lap Analizi")
 
-        # --- Sekme 2: Karşılaştırmalı Lap Analizi ---
-        compare_tab = QWidget()
-        compare_layout = QVBoxLayout(compare_tab)
+        # --- Sekme 2: Karşılaştırmalı Lap Analizi (tüm sayfa kaydırılabilir) ---
+        compare_scroll = QScrollArea()
+        compare_scroll.setWidgetResizable(True)
+        compare_content = QWidget()
+        compare_scroll.setWidget(compare_content)
+        compare_layout = QVBoxLayout(compare_content)
 
         compare_row = QHBoxLayout()
         compare_row.addWidget(QLabel("Karşılaştırılacak tur:"))
         self._compare_combo = QComboBox()
         self._compare_combo.currentIndexChanged.connect(self._on_compare_lap_changed)
         compare_row.addWidget(self._compare_combo)
-        compare_row.addStretch(1)
         compare_layout.addLayout(compare_row)
 
         self._compare_chart = PlotlyChartWidget()
-        compare_layout.addWidget(self._compare_chart, stretch=1)
+        self._compare_chart.setFixedHeight(650)
+        compare_layout.addWidget(self._compare_chart)
+
+        self._track_map_label = QLabel("Pist Haritası (Demo)")
+        self._track_map_label.setStyleSheet("font-size: 12px; font-weight: 600; margin-top: 8px;")
+        compare_layout.addWidget(self._track_map_label)
+
+        self._track_map_chart = PlotlyChartWidget()
+        self._track_map_chart.setFixedHeight(550)
+        compare_layout.addWidget(self._track_map_chart)
 
         self._compare_ai_button = QPushButton("AI Karşılaştırma Analizi Oluştur")
         self._compare_ai_button.clicked.connect(self._on_generate_comparison_feedback)
@@ -197,8 +218,7 @@ class LapDetailWidget(QWidget):
         self._compare_feedback_text.setMaximumHeight(160)
         compare_layout.addWidget(self._compare_feedback_text)
 
-        self._tabs.addTab(compare_tab, "Karşılaştırmalı Lap Analizi")
-
+        self._tabs.addTab(compare_scroll, "Karşılaştırmalı Lap Analizi")
         self._update_ai_button_state()
 
     def _update_ai_button_state(self) -> None:
@@ -244,16 +264,35 @@ class LapDetailWidget(QWidget):
         if index < 0 or self._current_lap is None or not self._current_lap.telemetry_file:
             return
         other_lap_number = self._compare_combo.itemData(index)
-        other_lap = next((lap for lap in self._all_laps if lap.lap_number == other_lap_number), None)
+        other_lap = next(
+            (lap for lap in self._all_laps if lap.lap_number == other_lap_number), None
+        )
         if other_lap is None or not other_lap.telemetry_file:
             return
 
+        label_a = f"Tur {self._current_lap.lap_number}"
+        label_b = f"Tur {other_lap.lap_number}"
+
         df_a = read_telemetry(self._current_lap.telemetry_file)
         df_b = read_telemetry(other_lap.telemetry_file)
-        html = build_comparison_html(
-            df_a, df_b, f"Tur {self._current_lap.lap_number}", f"Tur {other_lap.lap_number}"
-        )
+        html = build_comparison_html(df_a, df_b, label_a, label_b)
         self._compare_chart.render_html(html)
+
+        if self._current_lap.position_file and other_lap.position_file:
+            positions_a = read_positions(self._current_lap.position_file)
+            positions_b = read_positions(other_lap.position_file)
+            track = TrackName.from_udp(self._track_id)
+            map_html = build_track_map_html(
+                positions_a, positions_b, df_a, df_b, label_a, label_b, track=track
+            )            
+            self._track_map_chart.render_html(map_html)
+            self._track_map_label.setVisible(True)
+            self._track_map_chart.setVisible(True)
+        else:
+            # Bu turlar Motion paketi entegrasyonundan önce kaydedilmişse konum
+            # verisi yok — harita alanını gizle, hata verme.
+            self._track_map_label.setVisible(False)
+            self._track_map_chart.setVisible(False)
 
     def _on_generate_single_feedback(self) -> None:
         if self._coaching_engine is None or self._current_lap is None:

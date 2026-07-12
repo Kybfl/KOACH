@@ -94,12 +94,17 @@ class MainWindow(QMainWindow):
         self._secondary_panel.live_session_clicked.connect(self._show_canli_session)
         self._secondary_panel.lap_analysis_clicked.connect(self._show_lap_analizi)
         self._secondary_panel.session_history_clicked.connect(self._show_session_gecmisi)
-        root_layout.addWidget(self._secondary_panel)
 
         # --- İçerik alanı ---
         self._content_stack = QStackedWidget()
-        root_layout.addWidget(self._content_stack, stretch=1)
-
+        right_column = QWidget()
+        right_layout = QVBoxLayout(right_column)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(0)
+        right_layout.addWidget(self._secondary_panel)
+        right_layout.addWidget(self._content_stack, stretch=1)
+        root_layout.addWidget(right_column, stretch=1)
+        
         self._build_pages()
         self._route_on_startup()
 

@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from f1_coach.domain.models.enums import SessionType, TrackName, WeatherCondition
 from f1_coach.domain.models.telemetry_point import CarStatusPoint, TelemetryPoint
 from f1_coach.infrastructure.udp.packets import (
+    CarMotionData,
     CarStatusData,
     CarTelemetryData,
     LapData,
@@ -55,6 +56,13 @@ class AssistConfig:
     dynamic_racing_line: int
     corner_cutting_stringency: int
 
+def map_car_position(car: CarMotionData) -> tuple[float, float]:
+    """Motion paketinden aracın dünya koordinatlarındaki (X, Z) konumunu çıkarır.
+
+    Y ekseni yükseklik (dikey) olduğu için 2D pist haritası için kullanılmaz —
+    yalnızca X/Z düzlemi pist düzlemine karşılık gelir.
+    """
+    return float(car.m_worldPositionX), float(car.m_worldPositionZ)
 
 def map_session_info(packet: PacketSessionData) -> tuple[str, TrackName, SessionType]:
     """Extract session UID, track and session type from a Session packet.

@@ -65,7 +65,7 @@ class LapORM(Base):
     air_temperature: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     telemetry_file: Mapped[str] = mapped_column(String(512), nullable=False, default="")
     status_file: Mapped[str] = mapped_column(String(512), nullable=False, default="")
-
+    position_file: Mapped[str] = mapped_column(String(512), nullable=False, default="")
     session: Mapped["SessionORM"] = relationship("SessionORM", back_populates="laps")
     feedbacks: Mapped[list["AIFeedbackORM"]] = relationship(
         "AIFeedbackORM",

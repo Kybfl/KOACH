@@ -22,6 +22,11 @@ from f1_coach.domain.ports.session_repository import SessionRepository
 from f1_coach.infrastructure.logging.logger import get_logger
 from f1_coach.infrastructure.storage.parquet_writer import write_car_status, write_telemetry
 from f1_coach.infrastructure.udp.telemetry_mapper import AssistConfig, SessionConditions
+from f1_coach.infrastructure.storage.parquet_writer import (
+    write_car_status,
+    write_positions,
+    write_telemetry,
+)
 
 logger = get_logger(__name__)
 
@@ -43,6 +48,8 @@ class SessionManager:
         # Per-lap accumulators
         self._telemetry_buffer: list[TelemetryPoint] = []
         self._latest_telemetry: TelemetryPoint | None = None
+        self._latest_telemetry: TelemetryPoint | None = None
+        self._current_lap_positions: list[tuple[float, float]] = []
         self._status_buffer: list[CarStatusPoint] = []
         self._current_lap_number: int = 0
         self._current_lap_invalid: bool = False
@@ -71,6 +78,14 @@ class SessionManager:
         """En son alınan telemetri karesi — Canlı Session ekranındaki anlık
         hız/gaz/RPM göstergeleri için kullanılır. Hiç veri gelmediyse None."""
         return self._latest_telemetry
+
+    def on_car_position(self, x: float, z: float, track_position: float) -> None:
+        """Motion paketinden gelen (X, Z) konumunu, pist pozisyonuyla birlikte
+        mevcut tur için biriktirir. track_position, Lap Analizi'nde bu noktaları
+        telemetri (hız) verisiyle eşleştirmek için kullanılır.
+        """
+        if self._session is not None and self._current_lap_number > 0:
+            self._current_lap_positions.append((track_position, x, z))
 
     def on_session_packet(
         self,
@@ -211,6 +226,13 @@ class SessionManager:
                 self._current_lap_number,
                 self._status_buffer,
             )
+        position_path = ""
+        if self._current_lap_positions:
+            position_path = write_positions(
+                self._session.session_uid,
+                self._current_lap_number,
+                self._current_lap_positions,
+            )
 
         lap = Lap(
             lap_number=self._current_lap_number,
@@ -226,6 +248,7 @@ class SessionManager:
             air_temperature=self._latest_conditions.air_temperature,
             telemetry_file=telemetry_path,
             status_file=status_path,
+            position_file=position_path,
             session_id=self._session.id,
         )
         self._lap_repo.save(lap)
@@ -239,6 +262,7 @@ class SessionManager:
         )
 
         self._telemetry_buffer = []
+        self._current_lap_positions = []
         self._status_buffer = []
 
     def _flush_current_lap(self) -> None:
