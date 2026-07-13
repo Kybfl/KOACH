@@ -132,6 +132,9 @@ MIT — see [LICENSE](LICENSE).
 
 Built against the official EA Sports F1 25 UDP Telemetry Specification.
 
-##Credits
+---
 
+## Credits
 Track Maps : https://github.com/julesr0y/f1-circuits-svg
+
+---
