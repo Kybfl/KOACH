@@ -3,7 +3,7 @@
 Satisfies the AIAdapter Protocol structurally — no inheritance required.
 """
 
-import google.generativeai as genai
+import google as genai
 
 from f1_coach.infrastructure.logging.logger import get_logger
 
@@ -26,7 +26,10 @@ class GeminiAdapter:
             RuntimeError: If the Gemini API call fails.
         """
         try:
-            response = self._model.generate_content(prompt)
+            response = self._client.models.generate_content(
+                model=self._model_name,
+                contents=prompt
+            )
             text = getattr(response, "text", None)
             if not text:
                 raise RuntimeError("Gemini returned an empty response.")
