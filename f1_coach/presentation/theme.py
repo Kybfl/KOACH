@@ -180,4 +180,32 @@ def build_global_stylesheet(base_font_size: int = 13) -> str:
             background-color: {SURFACE};
             border-right: 1px solid {BORDER};
         }}
+        QFrame#Sidebar {{
+            background-color: {SURFACE};
+            border-right: 1px solid {BORDER};
+        }}
+
+        QTabWidget::pane {{
+            border: 1px solid {BORDER};
+            border-radius: 8px;
+            top: -1px;
+        }}
+        QTabBar::tab {{
+            background: {SURFACE};
+            color: {TEXT_SECONDARY};
+            padding: 8px 16px;
+            border: 1px solid {BORDER};
+            border-bottom: none;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            margin-right: 2px;
+        }}
+        QTabBar::tab:selected {{
+            background: {BACKGROUND};
+            color: {TEXT_PRIMARY};
+            font-weight: 600;
+        }}
+        QTabBar::tab:hover {{
+            color: {TEXT_PRIMARY};
+        }}
     """
