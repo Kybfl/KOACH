@@ -15,7 +15,7 @@ from pathlib import Path
 from PyQt6.QtWidgets import QApplication
 from f1_coach.infrastructure.logging.logger import get_logger
 from f1_coach.infrastructure.storage.orm.database import init_db
-from f1_coach.infrastructure.storage.repositories.sqlite_car_setup_repository import (
+from f1_coach.infrastructure.storage.repositories.f125.sqlite_car_setup_repository import (
     SQLiteCarSetupRepository,
 )
 logger = get_logger(__name__)
@@ -32,7 +32,7 @@ def run() -> None:
     logger.info("KOACH GUI starting...")
 
     # --- Tema/ölçek belirleme: MainWindow import edilmeden önce yapılmalı ---
-    from f1_coach.infrastructure.storage.repositories.sqlite_profile_repository import (
+    from f1_coach.infrastructure.storage.repositories.f125.sqlite_profile_repository import (
         SQLiteProfileRepository,
     )
     from f1_coach.presentation.theme import set_active_theme
@@ -47,13 +47,13 @@ def run() -> None:
         theme_manager.set_scale(bootstrap_profile.ui_scale)
 
     # --- Artık MainWindow (ve tüm sayfa modülleri) güvenle import edilebilir ---
-    from f1_coach.infrastructure.storage.repositories.sqlite_lap_repository import (
+    from f1_coach.infrastructure.storage.repositories.f125.sqlite_lap_repository import (
         SQLiteLapRepository,
     )
-    from f1_coach.infrastructure.storage.repositories.sqlite_session_repository import (
+    from f1_coach.infrastructure.storage.repositories.f125.sqlite_session_repository import (
         SQLiteSessionRepository,
     )
-    from f1_coach.infrastructure.udp.telemetry_receiver import TelemetryReceiver
+    from f1_coach.infrastructure.f125_udp.telemetry_receiver import TelemetryReceiver
     from f1_coach.presentation.main_window import MainWindow
 
     app = QApplication(sys.argv)

@@ -15,31 +15,31 @@ from pathlib import Path
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QMainWindow, QStackedWidget, QVBoxLayout, QWidget
 from PyQt6.QtGui import QIcon
 
-from f1_coach.domain.ports.car_setup_repository import CarSetupRepository
-from f1_coach.infrastructure.storage.repositories.sqlite_car_setup_repository import (
+from f1_coach.domain.ports.f125.car_setup_repository import CarSetupRepository
+from f1_coach.infrastructure.storage.repositories.f125.sqlite_car_setup_repository import (
     SQLiteCarSetupRepository,
 )
 
-from f1_coach.application.coaching_engine import CoachingEngine
+from f1_coach.application.f125.coaching_engine import CoachingEngine
 from f1_coach.infrastructure.ai.adapter_factory import create_ai_adapter
 from f1_coach.infrastructure.security.credential_store import get_api_key
 from f1_coach.presentation.ayarlar_page import AyarlarPage
 
-from f1_coach.presentation.f1_25_landing_page import F1_25LandingPage
-from f1_coach.presentation.session_gecmisi_page import SessionGecmisiPage
-from f1_coach.infrastructure.udp.telemetry_receiver import TelemetryReceiver
-from f1_coach.presentation.canli_session_page import CanliSessionPage
-from f1_coach.presentation.lap_analizi_page import LapAnaliziPage
-from f1_coach.infrastructure.storage.repositories.sqlite_lap_repository import (
+from f1_coach.presentation.f125.f1_25_landing_page import F1_25LandingPage
+from f1_coach.presentation.f125.session_gecmisi_page import SessionGecmisiPage
+from f1_coach.infrastructure.f125_udp.telemetry_receiver import TelemetryReceiver
+from f1_coach.presentation.f125.canli_session_page import CanliSessionPage
+from f1_coach.presentation.f125.lap_analizi_page import LapAnaliziPage
+from f1_coach.infrastructure.storage.repositories.f125.sqlite_lap_repository import (
     SQLiteLapRepository,
 )
 from f1_coach.domain.ports.profile_repository import ProfileRepository
-from f1_coach.domain.ports.session_repository import SessionRepository
+from f1_coach.domain.ports.f125.session_repository import SessionRepository
 from f1_coach.infrastructure.logging.logger import get_logger
 from f1_coach.presentation.ana_sayfa_page import AnaSayfaPage
 
 from f1_coach.presentation.profil_page import ProfilPage
-from f1_coach.presentation.secondary_panel import SecondaryPanel
+from f1_coach.presentation.f125.secondary_panel import SecondaryPanel
 from f1_coach.presentation.sidebar import Sidebar
 
 logger = get_logger(__name__)

@@ -8,7 +8,9 @@ Onboarding turu şimdilik kapsam dışı bırakıldı (kullanıcı isteği). Say
   - Son session'lar listesi (gerçek veriden, en fazla 5 kayıt)
 """
 
+from pathlib import Path
 from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QPixmap 
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -20,7 +22,7 @@ from PyQt6.QtWidgets import (
 from f1_coach.presentation import theme as theme_module
 from f1_coach.presentation.theme_manager import ThemeManager
 from f1_coach.domain.ports.profile_repository import ProfileRepository
-from f1_coach.domain.ports.session_repository import SessionRepository
+from f1_coach.domain.ports.f125.session_repository import SessionRepository
 from f1_coach.infrastructure.logging.logger import get_logger
 from f1_coach.infrastructure.security.credential_store import has_api_key
 from f1_coach.presentation.banner_widget import WarningBanner
@@ -28,12 +30,15 @@ from f1_coach.presentation.banner_widget import WarningBanner
 
 logger = get_logger(__name__)
 
+CURRENT_DIR = Path(__file__).resolve().parent
+ICONS_DIR = CURRENT_DIR / "assets" / "icons"
+
 _FEATURES = [
-    ("📶",  theme_module.GREEN, "UDP Telemetrisi",
+    ("udp.svg",  theme_module.GREEN, "UDP Telemetrisi",
      "F1 25 oyunundan gerçek zamanlı telemetri verisini UDP üzerinden yakala ve kaydet."),
-    ("🛡",  theme_module.PURPLE, "Oyuna Müdahale Yok",
+    ("no-disturb.svg",  theme_module.PURPLE, "Oyuna Müdahale Yok",
      "Tamamen pasif dinleme — oyun verilerine yalnızca okuma erişimi, hiçbir mod veya enjeksiyon yok."),
-    ("🧠",  theme_module.ORANGE, "Session Sonrası AI Analiz",
+    ("ai.svg",  theme_module.ORANGE, "Session Sonrası AI Analiz",
      "Sürüşünü yüklediğin AI modeline analiz ettir, kişiselleştirilmiş geri bildirim al."),
 ]
 
@@ -45,7 +50,7 @@ def _format_lap_time(seconds: float) -> str:
     return f"{int(minutes)}:{secs:06.3f}"
 
 
-def _make_feature_card(icon: str, color: str, title: str, description: str) -> QFrame:
+def _make_feature_card(icon_filename: str, color: str, title: str, description: str) -> QFrame:
     card = QFrame()
     card.setStyleSheet(
         f"QFrame {{ background-color: {theme_module.SURFACE}; border: 1px solid {theme_module.BORDER};"
@@ -53,21 +58,36 @@ def _make_feature_card(icon: str, color: str, title: str, description: str) -> Q
     )
     layout = QVBoxLayout(card)
 
-    icon_box = QLabel(icon)
-    icon_box.setFixedSize(38, 38)
+    icon_box = QLabel()
+    # Kutunun boyutu
+    icon_box.setFixedSize(48, 48)
     icon_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
     icon_box.setStyleSheet(
-        f"background-color: { theme_module.rgba(color, 0.14)}; border-radius: 10px; font-size: 17px;"
+        f"background-color: {theme_module.rgba(color, 0.14)}; border-radius: 12px;"
     )
-    layout.addWidget(icon_box)
+    
+    icon_path = ICONS_DIR / icon_filename
+    if icon_path.exists():
+        pixmap = QPixmap(str(icon_path))
+        scaled_pixmap = pixmap.scaled(16, 16, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        icon_box.setPixmap(scaled_pixmap)
+    else:
+        logger.warning(f"Ikon bulunamadi: {icon_path}")
+        icon_box.setText("?")
+        icon_box.setStyleSheet(icon_box.styleSheet() + " font-size: 20px; font-weight: bold;")
+
+    layout.addWidget(icon_box, alignment=Qt.AlignmentFlag.AlignHCenter)
 
     title_label = QLabel(title)
     title_label.setWordWrap(True)
+    title_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
     title_label.setStyleSheet("font-weight: 600; font-size: 14px; background: transparent;")
     layout.addWidget(title_label)
 
     desc_label = QLabel(description)
     desc_label.setWordWrap(True)
+    # Açıklamayı da ortaya hizalıyoruz (Gözüne hoş gelmezse bu satırı silebilirsin)
+    desc_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
     desc_label.setStyleSheet(f"color: { theme_module.TEXT_SECONDARY}; font-size: 12px; background: transparent;")
     layout.addWidget(desc_label)
 
@@ -180,13 +200,6 @@ class AnaSayfaPage(QWidget):
         )
         self._ai_banner.action_clicked.connect(self.settings_requested.emit)
         self._layout.addWidget(self._ai_banner)
-
-        # --- Özellik kartları ---
-        features_header = QLabel("ÖZELLİKLER")
-        features_header.setStyleSheet(
-            f"color: { theme_module.TEXT_SECONDARY}; font-size: 11px; font-weight: 600;"
-        )
-        self._layout.addWidget(features_header)
 
         self._features_row = QHBoxLayout()
         self._features_row.setSpacing(14)

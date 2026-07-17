@@ -21,7 +21,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from f1_coach.infrastructure.logging.logger import get_logger
-from f1_coach.infrastructure.storage.orm.tables import Base
+from f1_coach.infrastructure.storage.orm.base import Base
+from f1_coach.infrastructure.storage.orm import fsae_tables
 
 logger = get_logger(__name__)
 

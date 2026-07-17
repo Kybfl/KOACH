@@ -19,22 +19,12 @@ from f1_coach.presentation.resource_path import resource_path
 
 _ICONS_DIR = resource_path("assets/icons")
 _BANNER_DIR = resource_path("assets/banner")
+_F125_BANNER = _BANNER_DIR / "f125-banner.jpg"
+_FSAE_BANNER = _BANNER_DIR / "fsae-banner.png"
 _SIDEBAR_WIDTH = 64
 
-def _find_banner_path() -> Path | None:
-    """assets/banner/ klasöründeki ilk resim dosyasını bulur.
-
-    Dosya adı bilinmeden çalışması için — kullanıcı klasöre hangi ismi
-    verirse versin otomatik bulunur.
-    """
-    if not _BANNER_DIR.exists():
-        return None
-    for ext in ("*.jpg", "*.jpeg", "*.png", "*.webp"):
-        matches = sorted(_BANNER_DIR.glob(ext))
-        if matches:
-            return matches[0]
-    return None
-
+f125_path = Path(_F125_BANNER) if Path(_F125_BANNER).exists() else None
+fsae_path = Path(_FSAE_BANNER) if Path(_FSAE_BANNER).exists() else None
 
 def _make_cropped_rounded_pixmap(path: Path, size: int, corner_radius: int) -> QPixmap:
     """Verilen resmi kare olacak şekilde ortadan kırpar, köşeleri yuvarlar.
@@ -84,9 +74,9 @@ class _NavIconButton(QToolButton):
         self._gray_icon = QIcon(str(gray_path)) if gray_path.exists() else QIcon()
         self._color_icon = QIcon(str(color_path)) if color_path.exists() else QIcon()
         self.setIcon(self._gray_icon)
-        self.setIconSize(QSize(24, 24)) # boyut
+        self.setIconSize(QSize(24, 24)) 
         self.setToolTip(tooltip)
-        self.setFixedSize(52, 52)
+        self.setFixedSize(44, 44)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         ThemeManager.instance().theme_changed.connect(self._apply_hover_theme)
         self._apply_hover_theme()
@@ -110,14 +100,14 @@ class _NavIconButton(QToolButton):
         super().leaveEvent(event)
 
 
-class _F1BannerButton(QFrame):
-    """F1 25 nav öğesi — banner görseli, hover'da renkli + vurgu çerçeveli."""
+class BannerButton(QFrame):
+    """banner görseli, hover'da renkli + vurgu çerçeveli."""
 
     clicked = pyqtSignal()
 
     def __init__(self, banner_path: Path | None, accent: str) -> None:
         super().__init__()
-        self._accent = accent
+        self._accent = ACCENT_RED
         self.setFixedSize(44, 44)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
@@ -126,7 +116,7 @@ class _F1BannerButton(QFrame):
         self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         if banner_path is not None:
-            base = _make_cropped_rounded_pixmap(banner_path, 40, 12)
+            base = _make_cropped_rounded_pixmap(banner_path, 40, 25)
             self._gray_pixmap: QPixmap | None = _desaturate(base)
             self._color_pixmap: QPixmap | None = base
             self._label.setPixmap(self._gray_pixmap)
@@ -141,8 +131,8 @@ class _F1BannerButton(QFrame):
     def _set_ring(self, active: bool) -> None:
         if active:
             self.setStyleSheet(
-                f"QFrame {{ background-color: {self._accent}; border: 2px solid {self._accent};"
-                "  border-radius: 11px; }"
+                f"QFrame {{ background-color: #000000; border: 1px solid {self._accent};"
+                "  border-radius: 10px; }"
             )
         else:
             self.setStyleSheet(
@@ -233,12 +223,14 @@ class Sidebar(QWidget):
         profile_clicked:  Üstteki avatar tıklandı → Profil sayfası.
         home_clicked:     Ana Sayfa ikonu tıklandı.
         f1_25_clicked:    F1 25 ikonu tıklandı → F1 25 Landing sayfası.
+        fsae_clicked:     FSAE logosuna tıklandı -> FSAE landing sayfası.
         settings_clicked: Alttaki Ayarlar ikonu tıklandı.
     """
 
     profile_clicked = pyqtSignal()
     home_clicked = pyqtSignal()
     f1_25_clicked = pyqtSignal()
+    fsae_clicked = pyqtSignal()
     settings_clicked = pyqtSignal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -264,9 +256,13 @@ class Sidebar(QWidget):
         self._home_button.clicked.connect(self.home_clicked.emit)
         layout.addWidget(self._home_button)
 
-        self._f1_25_button = _F1BannerButton(_find_banner_path(), "#000000")
+        self._f1_25_button = BannerButton(f125_path, "#000000")
         self._f1_25_button.clicked.connect(self.f1_25_clicked.emit)
         layout.addWidget(self._f1_25_button)
+
+        self._fsae_button = BannerButton(fsae_path, "#000000")
+        self._fsae_button.clicked.connect(self.fsae_clicked.emit)
+        layout.addWidget(self._fsae_button)
 
         layout.addStretch(1)
 

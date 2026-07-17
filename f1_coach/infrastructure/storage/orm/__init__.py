@@ -1,5 +1,5 @@
 from f1_coach.infrastructure.storage.orm.database import get_session, init_db
-from f1_coach.infrastructure.storage.orm.tables import (
+from f1_coach.infrastructure.storage.orm.f125_tables import (
     AIFeedbackORM,
     Base,
     LapORM,

@@ -12,13 +12,13 @@ import time
 
 from f1_coach.infrastructure.logging.logger import get_logger
 from f1_coach.infrastructure.storage.orm.database import init_db
-from f1_coach.infrastructure.storage.repositories.sqlite_session_repository import (
+from f1_coach.infrastructure.storage.repositories.f125.sqlite_session_repository import (
     SQLiteSessionRepository,
 )
-from f1_coach.infrastructure.storage.repositories.sqlite_lap_repository import (
+from f1_coach.infrastructure.storage.repositories.f125.sqlite_lap_repository import (
     SQLiteLapRepository,
 )
-from f1_coach.infrastructure.udp.telemetry_receiver import TelemetryReceiver
+from f1_coach.infrastructure.f125_udp.telemetry_receiver import TelemetryReceiver
 
 logger = get_logger(__name__)
 

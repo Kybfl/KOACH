@@ -29,10 +29,10 @@ from PyQt6.QtWidgets import (
 
 from f1_coach.presentation import theme as theme_module
 from f1_coach.presentation.theme_manager import ThemeManager
-from f1_coach.domain.models.enums import TrackName
+from f1_coach.domain.models.f125.enums import TrackName
 from f1_coach.domain.models.profile import Profile
 from f1_coach.domain.ports.profile_repository import ProfileRepository
-from f1_coach.domain.ports.session_repository import SessionRepository
+from f1_coach.domain.ports.f125.session_repository import SessionRepository
 from f1_coach.infrastructure.logging.logger import get_logger
 from f1_coach.presentation.theme import (
     BLUE,
