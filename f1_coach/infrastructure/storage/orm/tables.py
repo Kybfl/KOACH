@@ -112,3 +112,49 @@ class ProfileORM(Base):
     ui_scale: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+class CarSetupORM(Base):
+    """One row per detected setup change within a session (append-only)."""
+
+    __tablename__ = "car_setups"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    session_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    valid_from_lap: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    front_wing: Mapped[int] = mapped_column(Integer, nullable=False)
+    rear_wing: Mapped[int] = mapped_column(Integer, nullable=False)
+    on_throttle_diff: Mapped[int] = mapped_column(Integer, nullable=False)
+    off_throttle_diff: Mapped[int] = mapped_column(Integer, nullable=False)
+    front_camber: Mapped[float] = mapped_column(Float, nullable=False)
+    rear_camber: Mapped[float] = mapped_column(Float, nullable=False)
+    front_toe: Mapped[float] = mapped_column(Float, nullable=False)
+    rear_toe: Mapped[float] = mapped_column(Float, nullable=False)
+    front_suspension: Mapped[int] = mapped_column(Integer, nullable=False)
+    rear_suspension: Mapped[int] = mapped_column(Integer, nullable=False)
+    front_arb: Mapped[int] = mapped_column(Integer, nullable=False)
+    rear_arb: Mapped[int] = mapped_column(Integer, nullable=False)
+    front_ride_height: Mapped[int] = mapped_column(Integer, nullable=False)
+    rear_ride_height: Mapped[int] = mapped_column(Integer, nullable=False)
+    brake_pressure: Mapped[int] = mapped_column(Integer, nullable=False)
+    brake_bias: Mapped[int] = mapped_column(Integer, nullable=False)
+    front_left_tyre_pressure: Mapped[float] = mapped_column(Float, nullable=False)
+    front_right_tyre_pressure: Mapped[float] = mapped_column(Float, nullable=False)
+    rear_left_tyre_pressure: Mapped[float] = mapped_column(Float, nullable=False)
+    rear_right_tyre_pressure: Mapped[float] = mapped_column(Float, nullable=False)
+    ballast: Mapped[int] = mapped_column(Integer, nullable=False)
+    fuel_load: Mapped[float] = mapped_column(Float, nullable=False)
+
+class CarSetupFeedbackORM(Base):
+    """AI analysis text for a single car setup. Comparison feedback is
+    never persisted — only single-setup analysis reaches this table."""
+
+    __tablename__ = "car_setup_feedbacks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    setup_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("car_setups.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    feedback_text: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)

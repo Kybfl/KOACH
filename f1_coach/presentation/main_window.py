@@ -15,6 +15,11 @@ from pathlib import Path
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QMainWindow, QStackedWidget, QVBoxLayout, QWidget
 from PyQt6.QtGui import QIcon
 
+from f1_coach.domain.ports.car_setup_repository import CarSetupRepository
+from f1_coach.infrastructure.storage.repositories.sqlite_car_setup_repository import (
+    SQLiteCarSetupRepository,
+)
+
 from f1_coach.application.coaching_engine import CoachingEngine
 from f1_coach.infrastructure.ai.adapter_factory import create_ai_adapter
 from f1_coach.infrastructure.security.credential_store import get_api_key
@@ -49,12 +54,14 @@ class MainWindow(QMainWindow):
         profile_repo: ProfileRepository,
         session_repo: SessionRepository,
         lap_repo: SQLiteLapRepository,
+        car_setup_repo: CarSetupRepository,
         telemetry_receiver: TelemetryReceiver,
     ) -> None:
         super().__init__()
         self._profile_repo = profile_repo
         self._session_repo = session_repo
         self._lap_repo = lap_repo
+        self._car_setup_repo = car_setup_repo
         self._telemetry_receiver = telemetry_receiver
 
         self.setWindowTitle("KOACH")
@@ -163,7 +170,9 @@ class MainWindow(QMainWindow):
         self._canli_session_page.session_ended.connect(self._on_live_session_ended)
         self._page_canli_session = self._content_stack.addWidget(self._canli_session_page)
         
-        self._lap_analizi_page = LapAnaliziPage(self._session_repo, self._lap_repo, coaching_engine=None)
+        self._lap_analizi_page = LapAnaliziPage(
+            self._session_repo, self._lap_repo, coaching_engine=None, car_setup_repo=self._car_setup_repo
+        )        
         self._page_lap_analizi = self._content_stack.addWidget(self._lap_analizi_page)       
         
         self._session_gecmisi_page = SessionGecmisiPage(self._session_repo)
@@ -260,7 +269,7 @@ class MainWindow(QMainWindow):
 
         try:
             adapter = create_ai_adapter(profile.ai_provider, api_key)
-            engine = CoachingEngine(self._lap_repo, self._session_repo, adapter)
+            engine = CoachingEngine(self._lap_repo, self._session_repo, adapter, self._car_setup_repo)
             self._lap_analizi_page.set_coaching_engine(engine)
             logger.info("CoachingEngine kuruldu: provider=%s", profile.ai_provider)
         except Exception as exc:

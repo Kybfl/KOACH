@@ -10,13 +10,18 @@ Convention:
 
 from datetime import datetime
 
+from f1_coach.domain.models.setup_feedback import SetupFeedback
+from f1_coach.domain.models.car_setup import CarSetup
 from f1_coach.domain.models.ai_feedback import AIFeedback, FeedbackType
 from f1_coach.domain.models.enums import SessionType, TrackName, WeatherCondition
 from f1_coach.domain.models.lap import Lap
 from f1_coach.domain.models.profile import Profile
 from f1_coach.domain.models.session import Session
+
 from f1_coach.infrastructure.storage.orm.tables import (
     AIFeedbackORM,
+    CarSetupFeedbackORM,
+    CarSetupORM,
     LapORM,
     ProfileORM,
     SessionORM,
@@ -193,3 +198,94 @@ def profile_to_orm(domain: Profile) -> ProfileORM:
         kwargs["id"] = domain.id
     return ProfileORM(**kwargs)
 
+# ---------------------------------------------------------------------------
+# CarSetup
+# ---------------------------------------------------------------------------
+
+
+def car_setup_to_domain(orm: CarSetupORM) -> CarSetup:
+    """Convert a CarSetupORM row to a CarSetup domain model."""
+    return CarSetup(
+        session_id=orm.session_id,
+        valid_from_lap=orm.valid_from_lap,
+        front_wing=orm.front_wing,
+        rear_wing=orm.rear_wing,
+        on_throttle_diff=orm.on_throttle_diff,
+        off_throttle_diff=orm.off_throttle_diff,
+        front_camber=orm.front_camber,
+        rear_camber=orm.rear_camber,
+        front_toe=orm.front_toe,
+        rear_toe=orm.rear_toe,
+        front_suspension=orm.front_suspension,
+        rear_suspension=orm.rear_suspension,
+        front_arb=orm.front_arb,
+        rear_arb=orm.rear_arb,
+        front_ride_height=orm.front_ride_height,
+        rear_ride_height=orm.rear_ride_height,
+        brake_pressure=orm.brake_pressure,
+        brake_bias=orm.brake_bias,
+        front_left_tyre_pressure=orm.front_left_tyre_pressure,
+        front_right_tyre_pressure=orm.front_right_tyre_pressure,
+        rear_left_tyre_pressure=orm.rear_left_tyre_pressure,
+        rear_right_tyre_pressure=orm.rear_right_tyre_pressure,
+        ballast=orm.ballast,
+        fuel_load=orm.fuel_load,
+        id=orm.id,
+    )
+
+
+def car_setup_to_orm(domain: CarSetup) -> CarSetupORM:
+    """Convert a CarSetup domain model to a CarSetupORM row."""
+    kwargs: dict = dict(
+        session_id=domain.session_id,
+        valid_from_lap=domain.valid_from_lap,
+        front_wing=domain.front_wing,
+        rear_wing=domain.rear_wing,
+        on_throttle_diff=domain.on_throttle_diff,
+        off_throttle_diff=domain.off_throttle_diff,
+        front_camber=domain.front_camber,
+        rear_camber=domain.rear_camber,
+        front_toe=domain.front_toe,
+        rear_toe=domain.rear_toe,
+        front_suspension=domain.front_suspension,
+        rear_suspension=domain.rear_suspension,
+        front_arb=domain.front_arb,
+        rear_arb=domain.rear_arb,
+        front_ride_height=domain.front_ride_height,
+        rear_ride_height=domain.rear_ride_height,
+        brake_pressure=domain.brake_pressure,
+        brake_bias=domain.brake_bias,
+        front_left_tyre_pressure=domain.front_left_tyre_pressure,
+        front_right_tyre_pressure=domain.front_right_tyre_pressure,
+        rear_left_tyre_pressure=domain.rear_left_tyre_pressure,
+        rear_right_tyre_pressure=domain.rear_right_tyre_pressure,
+        ballast=domain.ballast,
+        fuel_load=domain.fuel_load,
+    )
+    if domain.is_persisted:
+        kwargs["id"] = domain.id
+    return CarSetupORM(**kwargs)
+
+# ---------------------------------------------------------------------------
+# SetupFeedback
+# ---------------------------------------------------------------------------
+def setup_feedback_to_domain(orm: CarSetupFeedbackORM) -> SetupFeedback:
+    """Convert a CarSetupFeedbackORM row to a SetupFeedback domain model."""
+    return SetupFeedback(
+        setup_id=orm.setup_id,
+        feedback_text=orm.feedback_text,
+        created_at=orm.created_at,
+        id=orm.id,
+    )
+
+
+def setup_feedback_to_orm(domain: SetupFeedback) -> CarSetupFeedbackORM:
+    """Convert a SetupFeedback domain model to a CarSetupFeedbackORM row."""
+    kwargs: dict = dict(
+        setup_id=domain.setup_id,
+        feedback_text=domain.feedback_text,
+        created_at=domain.created_at,
+    )
+    if domain.is_persisted:
+        kwargs["id"] = domain.id
+    return CarSetupFeedbackORM(**kwargs)

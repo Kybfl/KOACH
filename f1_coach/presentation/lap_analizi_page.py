@@ -25,15 +25,20 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-
+from f1_coach.domain.models.car_setup import CarSetup
 from f1_coach.domain.models.enums import TrackName
-from f1_coach.presentation.theme import BORDER, SURFACE, TEXT_SECONDARY, rgba
-from f1_coach.application.coaching_engine import CoachingEngine
 from f1_coach.domain.models.lap import Lap
+
+from f1_coach.application.coaching_engine import CoachingEngine
+
+from f1_coach.domain.ports.car_setup_repository import CarSetupRepository
 from f1_coach.domain.ports.lap_repository import LapRepository
 from f1_coach.domain.ports.session_repository import SessionRepository
+
 from f1_coach.infrastructure.logging.logger import get_logger
 from f1_coach.infrastructure.storage.parquet_writer import read_telemetry, read_positions
+
+from f1_coach.presentation.theme import BORDER, SURFACE, TEXT_SECONDARY, rgba
 from f1_coach.presentation.charts.lap_chart_builder import (
     build_comparison_html,
     build_single_lap_html,
@@ -48,6 +53,41 @@ from f1_coach.presentation.charts.plotly_chart_widget import PlotlyChartWidget
 logger = get_logger(__name__)
 
 _F1_PURPLE = "#9B30FF"   
+
+_SETUP_FIELD_LABELS: list[tuple[str, str]] = [
+    ("front_wing", "Ön Kanat"),
+    ("rear_wing", "Arka Kanat"),
+    ("on_throttle_diff", "Diferansiyel (Gazlı) %"),
+    ("off_throttle_diff", "Diferansiyel (Gazsız) %"),
+    ("front_camber", "Ön Kamber"),
+    ("rear_camber", "Arka Kamber"),
+    ("front_toe", "Ön Toe"),
+    ("rear_toe", "Arka Toe"),
+    ("front_suspension", "Ön Süspansiyon"),
+    ("rear_suspension", "Arka Süspansiyon"),
+    ("front_arb", "Ön Anti-Roll Bar"),
+    ("rear_arb", "Arka Anti-Roll Bar"),
+    ("front_ride_height", "Ön Yerden Yükseklik"),
+    ("rear_ride_height", "Arka Yerden Yükseklik"),
+    ("brake_pressure", "Fren Basıncı %"),
+    ("brake_bias", "Fren Dengesi (Ön) %"),
+    ("front_left_tyre_pressure", "Ön Sol Lastik Basıncı (PSI)"),
+    ("front_right_tyre_pressure", "Ön Sağ Lastik Basıncı (PSI)"),
+    ("rear_left_tyre_pressure", "Arka Sol Lastik Basıncı (PSI)"),
+    ("rear_right_tyre_pressure", "Arka Sağ Lastik Basıncı (PSI)"),
+    ("ballast", "Balast"),
+    ("fuel_load", "Yakıt Yükü (kg)"),
+]
+
+
+def _setup_label(setup: CarSetup) -> str:
+    return f"Tur {setup.valid_from_lap}'den itibaren"
+
+
+def _format_setup_value(value: float | int) -> str:
+    if isinstance(value, float):
+        return f"{value:.2f}"
+    return str(value)
 
 def _format_time(seconds: float) -> str:
     minutes, secs = divmod(seconds, 60)
@@ -138,12 +178,14 @@ class LapDetailWidget(QWidget):
         lap_repo: LapRepository,
         session_repo: SessionRepository,
         coaching_engine: CoachingEngine | None,
+        car_setup_repo: CarSetupRepository,   # ← yeni parametre
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self._lap_repo = lap_repo
         self._session_repo = session_repo
         self._coaching_engine = coaching_engine
+        self._car_setup_repo = car_setup_repo   # ← yeni satır
         self._current_lap: Lap | None = None
         self._all_laps: list[Lap] = []
         self._track_id: int = -1
@@ -219,12 +261,73 @@ class LapDetailWidget(QWidget):
         compare_layout.addWidget(self._compare_feedback_text)
 
         self._tabs.addTab(compare_scroll, "Karşılaştırmalı Lap Analizi")
+
+    # --- Sekme 3: Setup Analizi (tüm sayfa kaydırılabilir) ---
+        setup_scroll = QScrollArea()
+        setup_scroll.setWidgetResizable(True)
+        setup_content = QWidget()
+        setup_scroll.setWidget(setup_content)
+        setup_layout = QVBoxLayout(setup_content)
+
+        primary_row = QHBoxLayout()
+        primary_row.addWidget(QLabel("Bu session'daki setup:"))
+        self._setup_combo = QComboBox()
+        self._setup_combo.currentIndexChanged.connect(self._on_setup_selection_changed)
+        primary_row.addWidget(self._setup_combo, stretch=1)
+        setup_layout.addLayout(primary_row)
+
+        compare_row = QHBoxLayout()
+        compare_row.addWidget(QLabel("Karşılaştırılacak session:"))
+        self._setup_compare_session_combo = QComboBox()
+        self._setup_compare_session_combo.currentIndexChanged.connect(self._on_setup_compare_session_changed)
+        compare_row.addWidget(self._setup_compare_session_combo, stretch=1)
+        compare_row.addWidget(QLabel("Setup:"))
+        self._setup_compare_setup_combo = QComboBox()
+        self._setup_compare_setup_combo.currentIndexChanged.connect(self._on_setup_selection_changed)
+        compare_row.addWidget(self._setup_compare_setup_combo, stretch=1)
+        setup_layout.addLayout(compare_row)
+
+        self._setup_table = QTableWidget(0, 3)
+        self._setup_table.setHorizontalHeaderLabels(["Alan", "Seçili Setup", "Karşılaştırma"])
+        self._setup_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self._setup_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        setup_layout.addWidget(self._setup_table)
+
+        self._setup_empty_label = QLabel("Bu session için setup verisi kaydedilmemiş.")
+        self._setup_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._setup_empty_label.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 13px;")
+        self._setup_empty_label.hide()
+
+        self._setup_ai_button = QPushButton("AI Setup Analizi Oluştur")
+        self._setup_ai_button.clicked.connect(self._on_generate_setup_feedback)
+        setup_layout.addWidget(self._setup_ai_button)
+
+        self._setup_feedback_text = QTextEdit()
+        self._setup_feedback_text.setReadOnly(True)
+        self._setup_feedback_text.setMaximumHeight(160)
+        setup_layout.addWidget(self._setup_feedback_text)
+
+        self._setup_comparison_ai_button = QPushButton("AI Karşılaştırma Analizi Oluştur")
+        self._setup_comparison_ai_button.clicked.connect(self._on_generate_setup_comparison_feedback)
+        setup_layout.addWidget(self._setup_comparison_ai_button)
+
+        self._setup_comparison_feedback_text = QTextEdit()
+        self._setup_comparison_feedback_text.setReadOnly(True)
+        self._setup_comparison_feedback_text.setMaximumHeight(160)
+        setup_layout.addWidget(self._setup_comparison_feedback_text)
+        setup_layout.addWidget(self._setup_empty_label)
+
+        self._tabs.addTab(setup_scroll, "Setup Analizi")
         self._update_ai_button_state()
+
 
     def _update_ai_button_state(self) -> None:
         enabled = self._coaching_engine is not None
         tooltip = "" if enabled else "AI sağlayıcı henüz yapılandırılmadı (Ayarlar — Faz 6)"
-        for button in (self._single_ai_button, self._compare_ai_button):
+        for button in (
+            self._single_ai_button, self._compare_ai_button,
+            self._setup_ai_button, self._setup_comparison_ai_button,
+        ):
             button.setEnabled(enabled)
             button.setToolTip(tooltip)
     
@@ -248,6 +351,8 @@ class LapDetailWidget(QWidget):
 
         self._single_feedback_text.clear()
         self._compare_feedback_text.clear()
+        self._setup_feedback_text.clear()
+        self._setup_comparison_feedback_text.clear()
 
         self._compare_combo.blockSignals(True)
         self._compare_combo.clear()
@@ -259,6 +364,8 @@ class LapDetailWidget(QWidget):
         if self._compare_combo.count() > 0:
             self._compare_combo.setCurrentIndex(0)
             self._on_compare_lap_changed(0)
+        
+        self._load_setup_tab(lap.session_id)
 
     def _on_compare_lap_changed(self, index: int) -> None:
         if index < 0 or self._current_lap is None or not self._current_lap.telemetry_file:
@@ -319,16 +426,128 @@ class LapDetailWidget(QWidget):
         except Exception as exc:
             logger.error("AI karşılaştırma feedback üretimi başarısız: %s", exc)
             self._compare_feedback_text.setPlainText(f"Hata: {exc}")
+            
+    def _load_setup_tab(self, session_id: int) -> None:
+        setups = self._car_setup_repo.get_by_session(session_id)
+
+        self._setup_combo.blockSignals(True)
+        self._setup_combo.clear()
+        for setup in setups:
+            self._setup_combo.addItem(_setup_label(setup), setup)
+        self._setup_combo.blockSignals(False)
+
+        self._setup_compare_session_combo.blockSignals(True)
+        self._setup_compare_session_combo.clear()
+        for session in self._session_repo.get_all():
+            label = f"{session.track.display_name} — {session.created_at.strftime('%d.%m.%Y %H:%M')}"
+            if session.id == session_id:
+                label += " (bu session)"
+            self._setup_compare_session_combo.addItem(label, session.id)
+        default_index = self._setup_compare_session_combo.findData(session_id)
+        self._setup_compare_session_combo.setCurrentIndex(default_index if default_index >= 0 else 0)
+        self._setup_compare_session_combo.blockSignals(False)
+
+        self._populate_compare_setup_combo(session_id)
+
+        if self._setup_combo.count() > 0:
+            self._setup_combo.setCurrentIndex(0)
+        self._render_setup_table()
+
+    def _populate_compare_setup_combo(self, session_id: int) -> None:
+        self._setup_compare_setup_combo.blockSignals(True)
+        self._setup_compare_setup_combo.clear()
+        for setup in self._car_setup_repo.get_by_session(session_id):
+            self._setup_compare_setup_combo.addItem(_setup_label(setup), setup)
+        self._setup_compare_setup_combo.blockSignals(False)
+
+    def _on_setup_compare_session_changed(self, index: int) -> None:
+        if index < 0:
+            return
+        session_id = self._setup_compare_session_combo.itemData(index)
+        if session_id is None:
+            return
+        self._populate_compare_setup_combo(session_id)
+        if self._setup_compare_setup_combo.count() > 0:
+            self._setup_compare_setup_combo.setCurrentIndex(0)
+        self._render_setup_table()
+
+    def _on_setup_selection_changed(self, _index: int) -> None:
+        self._render_setup_table()
+
+    def _render_setup_table(self) -> None:
+        primary: CarSetup | None = self._setup_combo.currentData()
+        secondary: CarSetup | None = self._setup_compare_setup_combo.currentData()
+
+        if primary is None:
+            self._setup_table.setRowCount(0)
+            self._setup_table.hide()
+            self._setup_empty_label.show()
+            return
+
+        self._setup_empty_label.hide()
+        self._setup_table.show()
+        self._setup_table.setRowCount(len(_SETUP_FIELD_LABELS))
+
+        for row, (field_name, label) in enumerate(_SETUP_FIELD_LABELS):
+            primary_value = getattr(primary, field_name)
+            secondary_value = getattr(secondary, field_name) if secondary is not None else None
+
+            self._setup_table.setItem(row, 0, QTableWidgetItem(label))
+
+            primary_item = QTableWidgetItem(_format_setup_value(primary_value))
+            secondary_item = QTableWidgetItem(
+                _format_setup_value(secondary_value) if secondary is not None else "—"
+            )
+
+            # fuel_load karşılaştırmaya dahil edilmez — turdan tura doğal olarak
+            # azalır, mor vurgu burada yanıltıcı olurdu.
+            if secondary is not None and field_name != "fuel_load" and primary_value != secondary_value:
+                primary_item.setBackground(_purple_highlight())
+                secondary_item.setBackground(_purple_highlight())
+
+            self._setup_table.setItem(row, 1, primary_item)
+            self._setup_table.setItem(row, 2, secondary_item)
+    
+    def _on_generate_setup_feedback(self) -> None:
+        if self._coaching_engine is None:
+            return
+        setup: CarSetup | None = self._setup_combo.currentData()
+        if setup is None:
+            return
+        track = TrackName.from_udp(self._track_id)
+        try:
+            feedback = self._coaching_engine.generate_setup_feedback(setup, track)
+            self._setup_feedback_text.setPlainText(feedback.feedback_text)
+        except Exception as exc:
+            logger.error("AI setup feedback üretimi başarısız: %s", exc)
+            self._setup_feedback_text.setPlainText(f"Hata: {exc}")
+
+    def _on_generate_setup_comparison_feedback(self) -> None:
+        if self._coaching_engine is None:
+            return
+        primary: CarSetup | None = self._setup_combo.currentData()
+        secondary: CarSetup | None = self._setup_compare_setup_combo.currentData()
+        if primary is None or secondary is None:
+            return
+        track = TrackName.from_udp(self._track_id)
+        try:
+            text = self._coaching_engine.generate_setup_comparison_feedback(
+                primary, secondary, track
+            )
+            self._setup_comparison_feedback_text.setPlainText(text)
+        except Exception as exc:
+            logger.error("AI setup karşılaştırma feedback üretimi başarısız: %s", exc)
+            self._setup_comparison_feedback_text.setPlainText(f"Hata: {exc}")
 
 
 class LapAnaliziPage(QWidget):
     """Katman 1 + Katman 2'yi birleştiren konteyner."""
-
     def __init__(
         self,
         session_repo: SessionRepository,
         lap_repo: LapRepository,
         coaching_engine: CoachingEngine | None = None,
+        car_setup_repo: CarSetupRepository | None = None,   
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -345,7 +564,7 @@ class LapAnaliziPage(QWidget):
         self._stack = QStackedWidget()
         self._table_widget = LapTableWidget()
         self._table_widget.lap_selected.connect(self._on_lap_selected)
-        self._detail_widget = LapDetailWidget(lap_repo, session_repo, coaching_engine)
+        self._detail_widget = LapDetailWidget(lap_repo, session_repo, coaching_engine, car_setup_repo)
         self._detail_widget.back_pressed.connect(self._show_table)
 
         self._page_empty = self._stack.addWidget(self._empty_label)

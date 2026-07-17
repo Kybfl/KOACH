@@ -171,8 +171,9 @@ def build_track_map_html(
             center_x = (min_x + max_x) / 2.0
             center_z = (min_z + max_z) / 2.0
 
-            # Tek ortak ölçek: verinin en geniş boyutu + %15 pay, 500px SVG'ye sığdırılır.
-            data_extent = max(max_x - min_x, max_z - min_z) * 1.15
+            # Tek ortak ölçek: verinin en geniş boyutu + pay, 500px SVG'ye sığdırılır.
+            _TRACK_MARGIN_FACTOR = 1.08
+            data_extent = max(max_x - min_x, max_z - min_z) * _TRACK_MARGIN_FACTOR
             half_extent = max(data_extent, 1.0) / 2.0
 
             x_left = center_x - half_extent

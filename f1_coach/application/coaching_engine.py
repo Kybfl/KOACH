@@ -17,14 +17,24 @@ from f1_coach.application.prompt_builder import (
     build_comparison_prompt,
     build_conditions_note,
     build_post_lap_prompt,
+    build_setup_comparison_prompt,
+    build_setup_single_prompt,
     determine_reference,
 )
+
 from f1_coach.application.telemetry_analyzer import analyze_lap
+
 from f1_coach.domain.models.ai_feedback import AIFeedback, FeedbackType
 from f1_coach.domain.models.lap import Lap
+from f1_coach.domain.models.car_setup import CarSetup
+from f1_coach.domain.models.enums import TrackName
+from f1_coach.domain.models.setup_feedback import SetupFeedback      
+
+from f1_coach.domain.ports.car_setup_repository import CarSetupRepository
 from f1_coach.domain.ports.ai_adapter import AIAdapter
 from f1_coach.domain.ports.lap_repository import LapRepository
 from f1_coach.domain.ports.session_repository import SessionRepository
+
 from f1_coach.infrastructure.logging.logger import get_logger
 
 logger = get_logger(__name__)
@@ -38,10 +48,12 @@ class CoachingEngine:
         lap_repo: LapRepository,
         session_repo: SessionRepository,
         ai_adapter: AIAdapter,
+        car_setup_repo: CarSetupRepository,
     ) -> None:
         self._lap_repo = lap_repo
         self._session_repo = session_repo
         self._ai_adapter = ai_adapter
+        self._car_setup_repo = car_setup_repo
 
     def generate_post_lap_feedback(
         self,
@@ -166,4 +178,39 @@ class CoachingEngine:
         )
 
         prompt = build_comparison_prompt(summary_a, summary_b)
+        return self._ai_adapter.generate_feedback(prompt)
+
+
+    def generate_setup_feedback(self, setup: CarSetup, track: TrackName) -> SetupFeedback:
+        """Generate, persist, and return AI analysis for a single car setup.
+
+        Unlike lap coaching, there is no session telemetry link — the
+        analysis is limited to general engineering trade-offs implied by
+        the setup values themselves (see PromptBuilder's setup preamble).
+        """
+        logger.info("Generating setup feedback: setup_id=%d", setup.id)
+
+        prompt = build_setup_single_prompt(setup, track)
+        feedback_text = self._ai_adapter.generate_feedback(prompt)
+
+        feedback = SetupFeedback(
+            setup_id=setup.id,
+            feedback_text=feedback_text,
+        )
+        self._car_setup_repo.save_feedback(feedback)
+        return feedback
+
+    def generate_setup_comparison_feedback(
+        self, setup_a: CarSetup, setup_b: CarSetup, track: TrackName
+    ) -> str:
+        """Generate comparative feedback between two setups.
+
+        Not persisted — mirrors generate_comparison_feedback's on-demand,
+        ephemeral behaviour for lap comparisons.
+        """
+        logger.info(
+            "Generating setup comparison feedback: setup_a=%d setup_b=%d",
+            setup_a.id, setup_b.id,
+        )
+        prompt = build_setup_comparison_prompt(setup_a, setup_b, track)
         return self._ai_adapter.generate_feedback(prompt)

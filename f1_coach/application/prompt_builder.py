@@ -14,6 +14,8 @@ project's feedback-scope principle.
 from dataclasses import dataclass
 from enum import Enum
 
+from f1_coach.domain.models.car_setup import CarSetup
+from f1_coach.domain.models.enums import TrackName
 from f1_coach.application.telemetry_analyzer import LapSummary, SectorSummary
 from f1_coach.domain.models.lap import Lap
 from f1_coach.domain.models.session import Session
@@ -214,5 +216,85 @@ def build_comparison_prompt(lap_a: LapSummary, lap_b: LapSummary) -> str:
         "",
         "İki turu sektör sektör karşılaştır. Hangi turun hangi sektörde daha "
         "iyi performans gösterdiğini ve olası nedenini belirt.",
+    ]
+    return "\n".join(parts)
+
+# ---------------------------------------------------------------------------
+# Setup analizi promptları
+# ---------------------------------------------------------------------------
+
+_SETUP_SYSTEM_PREAMBLE = (
+    "Sen profesyonel bir F1 yarış mühendisisin. Sürücüye doğrudan hitap ederek "
+    "araç setup'ı hakkında yorum yapıyorsun.\n\n"
+    "KURALLAR:\n"
+    "1. Setup değerlerine dayanarak GENEL mühendislik trade-off'larını açıkla "
+    "(ör. 'yüksek ön kanat dönüşlerde tutuşu artırır ama düz hızda kayıp yaratabilir').\n"
+    "2. ASLA kesin zaman kazanç/kayıp iddiası yapma (ör. '0.3 saniye kazandırır') — "
+    "bu setup verisiyle doğrulanamaz bir iddiadır, çünkü elindeki veri iki setup'ın "
+    "aynı koşulda karşılaştırmalı sürülmüş telemetrisi değil.\n"
+    "3. Sürücüye DOĞRUDAN hitap et — 'sen', 'senin' gibi ikinci tekil şahıs kullan.\n"
+    "4. Setup'ın hangi sürüş tarzına (agresif/dengeli/stabil) uygun olduğunu "
+    "değerlendirebilirsin ama bunu da genel mühendislik bilgisine dayandır.\n"
+    "5. Türkçe, net ve öz yaz; toplam 4-6 cümleyi geçme.\n"
+)
+
+# UI'daki gösterim etiketlerinden bağımsız tutuluyor (application katmanı
+# presentation katmanına bağımlı olmamalı) — fuel_load kasıtlı olarak
+# hariç, turdan tura doğal olarak azaldığı için mühendislik yorumuna konu değil.
+_SETUP_PROMPT_FIELD_LABELS: list[tuple[str, str]] = [
+    ("front_wing", "Ön kanat"),
+    ("rear_wing", "Arka kanat"),
+    ("on_throttle_diff", "Diferansiyel (gaz açıkken) %"),
+    ("off_throttle_diff", "Diferansiyel (gaz kapalıyken) %"),
+    ("front_camber", "Ön kamber"),
+    ("rear_camber", "Arka kamber"),
+    ("front_toe", "Ön toe"),
+    ("rear_toe", "Arka toe"),
+    ("front_suspension", "Ön süspansiyon sertliği"),
+    ("rear_suspension", "Arka süspansiyon sertliği"),
+    ("front_arb", "Ön anti-roll bar"),
+    ("rear_arb", "Arka anti-roll bar"),
+    ("front_ride_height", "Ön yerden yükseklik"),
+    ("rear_ride_height", "Arka yerden yükseklik"),
+    ("brake_pressure", "Fren basıncı %"),
+    ("brake_bias", "Fren dengesi (ön) %"),
+    ("front_left_tyre_pressure", "Ön sol lastik basıncı (PSI)"),
+    ("front_right_tyre_pressure", "Ön sağ lastik basıncı (PSI)"),
+    ("rear_left_tyre_pressure", "Arka sol lastik basıncı (PSI)"),
+    ("rear_right_tyre_pressure", "Arka sağ lastik basıncı (PSI)"),
+    ("ballast", "Balast"),
+]
+
+
+def _format_setup_block(label: str, setup: CarSetup) -> str:
+    lines = [f"{label} (Tur {setup.valid_from_lap}'den itibaren geçerli):"]
+    for field_name, field_label in _SETUP_PROMPT_FIELD_LABELS:
+        lines.append(f"  {field_label}: {getattr(setup, field_name)}")
+    return "\n".join(lines)
+
+
+def build_setup_single_prompt(setup: CarSetup, track: TrackName) -> str:
+    """Build the prompt for single-setup AI analysis (persisted feedback)."""
+    parts = [
+        _SETUP_SYSTEM_PREAMBLE, "",
+        f"Pist: {track.display_name}", "",
+        _format_setup_block("SETUP", setup), "",
+        "Bu setup'ı genel olarak değerlendir: hangi sürüş tarzına uygun, "
+        "hangi trade-off'ları içeriyor?",
+    ]
+    return "\n".join(parts)
+
+
+def build_setup_comparison_prompt(
+    setup_a: CarSetup, setup_b: CarSetup, track: TrackName
+) -> str:
+    """Build the prompt for two-setup AI comparison (not persisted)."""
+    parts = [
+        _SETUP_SYSTEM_PREAMBLE, "",
+        f"Pist: {track.display_name}", "",
+        _format_setup_block("SETUP A", setup_a), "",
+        _format_setup_block("SETUP B", setup_b), "",
+        "İki setup'ı karşılaştır: hangi farklar var, bu farklar hangi genel "
+        "mühendislik trade-off'larına işaret ediyor?",
     ]
     return "\n".join(parts)

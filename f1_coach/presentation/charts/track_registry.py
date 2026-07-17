@@ -26,19 +26,33 @@ class TrackCalibration:
 # Dosya adları — assets/tracks/ klasörüne konan SVG dosyalarıyla eşleşmeli.
 # Yeni pist eklendikçe bu sözlüğe yeni satır eklenir.
 TRACK_SVG_FILES: dict[TrackName, str] = {
-    TrackName.MONZA: "monza.svg",
+    TrackName.MELBOURNE: "melbourne.svg",
+    TrackName.SHANGHAI: "shanghai.svg",
+    TrackName.BAHRAIN: "bahrain.svg",
+    TrackName.BARCELONA: "barcelona.svg",
+    TrackName.MONACO: "monaco.svg",
+    TrackName.MONTREAL: "montreal.svg",
     TrackName.SILVERSTONE: "silverstone.svg",
+    TrackName.BUDAPEST: "budapest.svg",
+    TrackName.SPA: "spa.svg",
+    TrackName.MONZA: "monza.svg",
+    TrackName.SINGAPORE: "singapore.svg",
+    TrackName.SUZUKA: "suzuka.svg",
+    TrackName.ABU_DHABI: "abu_dhabi.svg",
+    TrackName.AUSTIN: "austin.svg",
+    TrackName.SAO_PAULO: "sao_paulo.svg",
+    TrackName.AUSTRIA: "austria.svg",
+    TrackName.MEXICO_CITY: "mexico_city.svg",
+    TrackName.BAKU: "baku.svg",
+    TrackName.ZANDVOORT: "zandvoort.svg",
+    TrackName.IMOLA: "imola.svg",
+    TrackName.JEDDAH: "jeddah.svg",
+    TrackName.MIAMI: "miami.svg",
+    TrackName.LAS_VEGAS: "las_vegas.svg",
+    TrackName.LUSAIL: "lusail.svg",
 }
 
-# Başlangıç kalibrasyonu — kaba tahmin, gözle ayarlanacak.
-TRACK_CALIBRATIONS: dict[TrackName, TrackCalibration] = {
-    TrackName.MONZA: TrackCalibration(
-        world_x0=-1000.0, world_z0=-1000.0, world_x1=1000.0, world_z1=1000.0
-    ),
-    TrackName.SILVERSTONE: TrackCalibration(
-        world_x0=-1000.0, world_z0=-1000.0, world_x1=1000.0, world_z1=1000.0
-    ),
-}
+
 
 def get_track_svg_data_uri(track: TrackName) -> str | None:
     """Pist için SVG dosyasını, çizgileri inceltilmiş ve ters çevrilmiş halde base64 data URI olarak döner.
@@ -69,6 +83,3 @@ def get_track_svg_data_uri(track: TrackName) -> str | None:
     # Base64 olarak kodla
     encoded = base64.b64encode(svg_text.encode("utf-8")).decode("ascii")
     return f"data:image/svg+xml;base64,{encoded}"
-
-def get_track_calibration(track: TrackName) -> TrackCalibration | None:
-    return TRACK_CALIBRATIONS.get(track)

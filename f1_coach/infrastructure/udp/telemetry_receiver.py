@@ -16,10 +16,12 @@ import socket
 import threading
 import time
 
+from f1_coach.domain.ports.car_setup_repository import CarSetupRepository
 from f1_coach.domain.ports.lap_repository import LapRepository
 from f1_coach.domain.ports.session_repository import SessionRepository
 from f1_coach.infrastructure.logging.logger import get_logger
 from f1_coach.infrastructure.udp.parsers.packet_parsers import (
+    parse_car_setup,
     parse_car_status,
     parse_car_telemetry,
     parse_header,
@@ -31,6 +33,7 @@ from f1_coach.infrastructure.udp.session_manager import SessionManager
 from f1_coach.infrastructure.udp.telemetry_mapper import (
     map_assist_config,
     map_car_position,
+    map_car_setup_fields,
     map_car_status_point,
     map_lap_distance,
     map_lap_validity,
@@ -55,8 +58,9 @@ class TelemetryReceiver:
         self,
         session_repo: SessionRepository,
         lap_repo: LapRepository,
+        car_setup_repo: CarSetupRepository
     ) -> None:
-        self._manager = SessionManager(session_repo, lap_repo)
+        self._manager = SessionManager(session_repo, lap_repo, car_setup_repo)
         self._running = False
         self._thread: threading.Thread | None = None
 
@@ -153,6 +157,8 @@ class TelemetryReceiver:
             self._handle_session(data)
         elif packet_id == 2:
             self._handle_lap(data, header)
+        elif packet_id == 5:                      # ← yeni
+            self._handle_car_setup(data)
         elif packet_id == 6:
             self._handle_telemetry(data, header)
         elif packet_id == 7:
@@ -216,3 +222,11 @@ class TelemetryReceiver:
         self._tyre_compound = int(car.m_actualTyreCompound)
         point = map_car_status_point(header, car, self._track_position)
         self._manager.on_car_status_point(point)
+
+    def _handle_car_setup(self, data: bytes) -> None:
+        packet = parse_car_setup(data)
+        if packet is None:
+            return
+        car = packet.m_carSetupData[self._player_index]
+        fields = map_car_setup_fields(car)
+        self._manager.on_car_setup_packet(fields)

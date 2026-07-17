@@ -13,6 +13,9 @@ and called from the capture loop on every relevant packet.
 
 from datetime import datetime
 
+from f1_coach.domain.models.car_setup import CarSetup
+from f1_coach.domain.ports.car_setup_repository import CarSetupRepository
+from f1_coach.infrastructure.udp.telemetry_mapper import AssistConfig, CarSetupFields, SessionConditions
 from f1_coach.domain.models.enums import SessionType, TrackName, WeatherCondition
 from f1_coach.domain.models.lap import Lap
 from f1_coach.domain.models.session import Session
@@ -30,18 +33,38 @@ from f1_coach.infrastructure.storage.parquet_writer import (
 
 logger = get_logger(__name__)
 
+# fuel_load kasıtlı olarak dışarıda bırakıldı — her turda yakıt azaldığı için
+# karşılaştırmaya dahil edilirse her lap'te "yeni setup" algılanır.
+_SETUP_COMPARISON_FIELDS = (
+    "front_wing", "rear_wing", "on_throttle_diff", "off_throttle_diff",
+    "front_camber", "rear_camber", "front_toe", "rear_toe",
+    "front_suspension", "rear_suspension", "front_arb", "rear_arb",
+    "front_ride_height", "rear_ride_height",
+    "brake_pressure", "brake_bias",
+    "front_left_tyre_pressure", "front_right_tyre_pressure",
+    "rear_left_tyre_pressure", "rear_right_tyre_pressure",
+    "ballast",
+)
+
+
+def _setup_fields_changed(a: CarSetupFields, b: CarSetupFields) -> bool:
+    """True if any tunable setup value differs — fuel_load excluded (see above)."""
+    return any(getattr(a, f) != getattr(b, f) for f in _SETUP_COMPARISON_FIELDS)
 
 class SessionManager:
     """Owns the current session and handles lap transitions."""
 
     def __init__(
-        self,
-        session_repo: SessionRepository,
-        lap_repo: LapRepository,
+    self,
+    session_repo: SessionRepository,
+    lap_repo: LapRepository,
+    car_setup_repo: CarSetupRepository,   # ← yeni parametre
     ) -> None:
         self._session_repo = session_repo
         self._lap_repo = lap_repo
-
+        self._car_setup_repo = car_setup_repo   # ← yeni satır
+        
+        self._last_setup_fields: CarSetupFields | None = None
         self._session: Session | None = None
         self._track_length: float = 0.0
 
@@ -126,6 +149,57 @@ class SessionManager:
         if conditions.safety_car_active:
             self._current_lap_safety_car = True
 
+    def on_car_setup_packet(self, fields: CarSetupFields) -> None:
+        """Handle an incoming Car Setup packet (Packet ID 5).
+
+        The broadcast repeats every frame even when the setup hasn't changed —
+        only persists a new CarSetup row when the tunable values actually
+        differ from the last one seen, turning a continuous stream into
+        discrete "setup changed" events (e.g. after a pit stop).
+        """
+        if self._session is None:
+            return
+
+        if self._last_setup_fields is not None and not _setup_fields_changed(
+            fields, self._last_setup_fields
+        ):
+            return  # aynı setup, kayıt gerekmiyor
+
+        self._last_setup_fields = fields
+
+        setup = CarSetup(
+            session_id=self._session.id,
+            valid_from_lap=max(1, self._current_lap_number),
+            front_wing=fields.front_wing,
+            rear_wing=fields.rear_wing,
+            on_throttle_diff=fields.on_throttle_diff,
+            off_throttle_diff=fields.off_throttle_diff,
+            front_camber=fields.front_camber,
+            rear_camber=fields.rear_camber,
+            front_toe=fields.front_toe,
+            rear_toe=fields.rear_toe,
+            front_suspension=fields.front_suspension,
+            rear_suspension=fields.rear_suspension,
+            front_arb=fields.front_arb,
+            rear_arb=fields.rear_arb,
+            front_ride_height=fields.front_ride_height,
+            rear_ride_height=fields.rear_ride_height,
+            brake_pressure=fields.brake_pressure,
+            brake_bias=fields.brake_bias,
+            front_left_tyre_pressure=fields.front_left_tyre_pressure,
+            front_right_tyre_pressure=fields.front_right_tyre_pressure,
+            rear_left_tyre_pressure=fields.rear_left_tyre_pressure,
+            rear_right_tyre_pressure=fields.rear_right_tyre_pressure,
+            ballast=fields.ballast,
+            fuel_load=fields.fuel_load,
+        )
+        self._car_setup_repo.save(setup)
+
+        logger.info(
+            "New car setup detected: session=%s valid_from_lap=%d",
+            self._session.session_uid, setup.valid_from_lap,
+        )
+
     def on_lap_packet(
         self,
         lap_number: int,
@@ -204,6 +278,7 @@ class SessionManager:
         self._current_lap_number = 0
         self._telemetry_buffer = []
         self._status_buffer = []
+        self._last_setup_fields = None
 
     def _finalise_lap(self, lap_time_ms: int, tyre_compound: int, force_invalid: bool = False) -> None:
         """Write Parquet files and persist the completed lap."""

@@ -14,6 +14,7 @@ from f1_coach.domain.models.enums import SessionType, TrackName, WeatherConditio
 from f1_coach.domain.models.telemetry_point import CarStatusPoint, TelemetryPoint
 from f1_coach.infrastructure.udp.packets import (
     CarMotionData,
+    CarSetupData,
     CarStatusData,
     CarTelemetryData,
     LapData,
@@ -55,6 +56,38 @@ class AssistConfig:
     drs_assist: bool
     dynamic_racing_line: int
     corner_cutting_stringency: int
+
+@dataclass(frozen=True, slots=True)
+class CarSetupFields:
+    """Tunable setup values extracted from one Car Setup packet frame.
+
+    Deliberately excludes session_id/valid_from_lap/id — those are assigned
+    by SessionManager only once a genuine change is detected, not by this
+    mapper, which just translates a single UDP frame.
+    """
+
+    front_wing: int
+    rear_wing: int
+    on_throttle_diff: int
+    off_throttle_diff: int
+    front_camber: float
+    rear_camber: float
+    front_toe: float
+    rear_toe: float
+    front_suspension: int
+    rear_suspension: int
+    front_arb: int
+    rear_arb: int
+    front_ride_height: int
+    rear_ride_height: int
+    brake_pressure: int
+    brake_bias: int
+    front_left_tyre_pressure: float
+    front_right_tyre_pressure: float
+    rear_left_tyre_pressure: float
+    rear_right_tyre_pressure: float
+    ballast: int
+    fuel_load: float
 
 def map_car_position(car: CarMotionData) -> tuple[float, float]:
     """Motion paketinden aracın dünya koordinatlarındaki (X, Z) konumunu çıkarır.
@@ -187,3 +220,30 @@ def map_sector_times(lap_data: LapData) -> tuple[float, float, float]:
     # Sector 3 is not broadcast directly — derived at lap end from total − s1 − s2
     s3 = 0.0
     return s1, s2, s3
+
+def map_car_setup_fields(car: CarSetupData) -> CarSetupFields:
+    """Convert one CarSetupData frame to CarSetupFields."""
+    return CarSetupFields(
+        front_wing=int(car.m_frontWing),
+        rear_wing=int(car.m_rearWing),
+        on_throttle_diff=int(car.m_onThrottle),
+        off_throttle_diff=int(car.m_offThrottle),
+        front_camber=float(car.m_frontCamber),
+        rear_camber=float(car.m_rearCamber),
+        front_toe=float(car.m_frontToe),
+        rear_toe=float(car.m_rearToe),
+        front_suspension=int(car.m_frontSuspension),
+        rear_suspension=int(car.m_rearSuspension),
+        front_arb=int(car.m_frontAntiRollBar),
+        rear_arb=int(car.m_rearAntiRollBar),
+        front_ride_height=int(car.m_frontSuspensionHeight),
+        rear_ride_height=int(car.m_rearSuspensionHeight),
+        brake_pressure=int(car.m_brakePressure),
+        brake_bias=int(car.m_brakeBias),
+        front_left_tyre_pressure=float(car.m_frontLeftTyrePressure),
+        front_right_tyre_pressure=float(car.m_frontRightTyrePressure),
+        rear_left_tyre_pressure=float(car.m_rearLeftTyrePressure),
+        rear_right_tyre_pressure=float(car.m_rearRightTyrePressure),
+        ballast=int(car.m_ballast),
+        fuel_load=float(car.m_fuelLoad),
+    )
