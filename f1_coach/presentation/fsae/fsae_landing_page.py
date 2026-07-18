@@ -7,6 +7,7 @@ basıldığında MainWindow.on_fsae_start_pressed() tetiklenir ve doğrudan
 dinleyici yok; FSAE akışı tamamen kullanıcı tetiklemeli, offline bir
 dosya işleme sürecidir).
 """
+from pathlib import Path
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
@@ -20,6 +21,9 @@ from PyQt6.QtWidgets import (
 
 from f1_coach.presentation import theme as theme_module
 from f1_coach.presentation.theme_manager import ThemeManager
+
+CURRENT_DIR = Path(__file__).resolve().parent.parent
+ICONS_DIR = CURRENT_DIR / "assets" / "icons"
 
 _FEATURE_CARDS = [
     ("📥", "GREEN", "Ham CAN Log İçe Aktarma",
@@ -40,6 +44,7 @@ def _make_feature_card(icon: str, color: str, title: str, description: str) -> Q
         "  border-radius: 16px; padding: 18px; }"
     )
     layout = QVBoxLayout(card)
+    layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
     icon_box = QLabel(icon)
     icon_box.setFixedSize(42, 42)
@@ -51,11 +56,13 @@ def _make_feature_card(icon: str, color: str, title: str, description: str) -> Q
 
     title_label = QLabel(title)
     title_label.setWordWrap(True)
+    title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
     title_label.setStyleSheet("font-weight: 600; font-size: 14px; background: transparent;")
     layout.addWidget(title_label)
 
     desc_label = QLabel(description)
     desc_label.setWordWrap(True)
+    desc_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
     desc_label.setStyleSheet(f"color: {theme_module.TEXT_SECONDARY}; font-size: 12px; background: transparent;")
     layout.addWidget(desc_label)
 
@@ -78,11 +85,6 @@ class FSAELandingPage(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(48, 56, 48, 48)
         layout.setSpacing(20)
-
-        self._badge = QLabel("🏎 FSAE TELEMETRİ")
-        badge_wrapper = QVBoxLayout()
-        badge_wrapper.addWidget(self._badge, alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addLayout(badge_wrapper)
 
         title = QLabel("FSAE Telemetri Analizi")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -115,13 +117,6 @@ class FSAELandingPage(QWidget):
         self._apply_theme()
 
     def _apply_theme(self) -> None:
-        orange = theme_module.ORANGE
-        self._badge.setStyleSheet(
-            f"background-color: {theme_module.rgba(orange, 0.1)}; border: 1px solid {theme_module.rgba(orange, 0.2)};"
-            f"  border-radius: 100px; color: {orange}; font-size: 11px; font-weight: 600;"
-            "  padding: 6px 14px;"
-        )
-
         while self._grid.count():
             item = self._grid.takeAt(0)
             if item.widget():

@@ -146,3 +146,15 @@ def delete_session_files(session_identifier: str) -> None:
     if session_dir.exists():
         shutil.rmtree(session_dir)
         logger.info("Deleted vehicle session directory: %s", session_dir)
+
+def raw_can_frames_from_dataframe(df: pd.DataFrame) -> list[RawCanFrame]:
+    """Convert a raw CAN frames DataFrame (as read by read_raw_can_frames)
+    back into RawCanFrame domain objects.
+
+    Used when re-decoding after a labeling correction — the original CAN
+    log file is never re-read, only this Parquet file.
+    """
+    return [
+        RawCanFrame(can_id=int(row.can_id), timestamp=float(row.timestamp), data=bytes(row.data))
+        for row in df.itertuples(index=False)
+    ]

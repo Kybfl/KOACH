@@ -18,6 +18,30 @@ from f1_coach.infrastructure.storage.orm.database import init_db
 from f1_coach.infrastructure.storage.repositories.f125.sqlite_car_setup_repository import (
     SQLiteCarSetupRepository,
 )
+
+from f1_coach.infrastructure.storage.repositories.f125.sqlite_profile_repository import (
+    SQLiteProfileRepository,
+)
+from f1_coach.presentation.theme import set_active_theme
+from f1_coach.presentation.theme_manager import ThemeManager
+
+
+from f1_coach.infrastructure.storage.repositories.f125.sqlite_lap_repository import (
+    SQLiteLapRepository,
+)
+from f1_coach.infrastructure.storage.repositories.f125.sqlite_session_repository import (
+    SQLiteSessionRepository,
+)
+from f1_coach.infrastructure.storage.repositories.fsae.sqlite_channel_mapping_repository import (
+    SQLiteChannelMappingRepository,
+)
+from f1_coach.infrastructure.f125_udp.telemetry_receiver import TelemetryReceiver
+from f1_coach.presentation.main_window import MainWindow
+
+from f1_coach.infrastructure.storage.repositories.fsae.sqlite_vehicle_session_repository import (
+    SQLiteVehicleSessionRepository,
+)
+
 logger = get_logger(__name__)
 
 
@@ -31,13 +55,6 @@ def run() -> None:
     init_db()
     logger.info("KOACH GUI starting...")
 
-    # --- Tema/ölçek belirleme: MainWindow import edilmeden önce yapılmalı ---
-    from f1_coach.infrastructure.storage.repositories.f125.sqlite_profile_repository import (
-        SQLiteProfileRepository,
-    )
-    from f1_coach.presentation.theme import set_active_theme
-    from f1_coach.presentation.theme_manager import ThemeManager
-
     bootstrap_profile_repo = SQLiteProfileRepository()
     bootstrap_profile = bootstrap_profile_repo.get_current()
     set_active_theme(bootstrap_profile.theme if bootstrap_profile else "dark")
@@ -45,16 +62,6 @@ def run() -> None:
     theme_manager = ThemeManager.instance()
     if bootstrap_profile is not None:
         theme_manager.set_scale(bootstrap_profile.ui_scale)
-
-    # --- Artık MainWindow (ve tüm sayfa modülleri) güvenle import edilebilir ---
-    from f1_coach.infrastructure.storage.repositories.f125.sqlite_lap_repository import (
-        SQLiteLapRepository,
-    )
-    from f1_coach.infrastructure.storage.repositories.f125.sqlite_session_repository import (
-        SQLiteSessionRepository,
-    )
-    from f1_coach.infrastructure.f125_udp.telemetry_receiver import TelemetryReceiver
-    from f1_coach.presentation.main_window import MainWindow
 
     app = QApplication(sys.argv)
     icon_path = Path(__file__).parent / "assets" / "logos" / "koach_siyah.ico"
@@ -67,9 +74,18 @@ def run() -> None:
     session_repo = SQLiteSessionRepository()
     lap_repo = SQLiteLapRepository()
     car_setup_repo = SQLiteCarSetupRepository()
+    vehicle_session_repo = SQLiteVehicleSessionRepository()
     telemetry_receiver = TelemetryReceiver(session_repo, lap_repo, car_setup_repo)    
+    channel_mapping_repo = SQLiteChannelMappingRepository()
 
-    window = MainWindow(profile_repo, session_repo, lap_repo, car_setup_repo, telemetry_receiver)    
+    window = MainWindow(
+        profile_repo, 
+        session_repo, 
+        lap_repo, 
+        car_setup_repo, 
+        telemetry_receiver,
+        vehicle_session_repo,
+        channel_mapping_repo)    
     window.show()
 
     sys.exit(app.exec())
