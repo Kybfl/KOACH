@@ -10,6 +10,7 @@ dosya işleme sürecidir).
 from pathlib import Path
 
 from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
     QFrame,
     QGridLayout,
@@ -26,43 +27,53 @@ CURRENT_DIR = Path(__file__).resolve().parent.parent
 ICONS_DIR = CURRENT_DIR / "assets" / "icons"
 
 _FEATURE_CARDS = [
-    ("📥", "GREEN", "Ham CAN Log İçe Aktarma",
+    ("can_logs.svg", "GREEN", "Ham CAN Log İçe Aktarma",
      "Datalogger'dan USB ile alınan ham CAN log dosyasını (.blf/.asc/.trc/.csv) doğrudan içe aktar."),
-    ("🏷", "ORANGE", "Manuel Kanal Etiketleme",
+    ("labeling.svg", "ORANGE", "Manuel Kanal Etiketleme",
      "Her CAN ID içindeki sinyalleri kendi elinle etiketle — ölçek, offset ve birim tanımla, DBC dosyasına ihtiyaç yok."),
-    ("📈", "BLUE", "Dinamik Kanal Grafikleri",
+    ("fsae_graph.svg", "BLUE", "Dinamik Kanal Grafikleri",
      "Session'a göre değişen kanal setinden istediğin sinyalleri seçip zaman bazlı grafiklerde incele."),
-    ("🔁", "PURPLE", "Düzeltilebilir Etiketleme",
+    ("edit.svg", "PURPLE", "Düzeltilebilir Etiketleme",
      "Yanlış etiketlediğin bir kanalı, dosyayı yeniden yüklemeden düzeltip anında yeniden çözümle."),
 ]
 
 
-def _make_feature_card(icon: str, color: str, title: str, description: str) -> QFrame:
+def _make_feature_card(icon_filename: str, color: str, title: str, description: str) -> QFrame:
     card = QFrame()
     card.setStyleSheet(
         f"QFrame {{ background-color: {theme_module.SURFACE}; border: 1px solid {theme_module.BORDER};"
         "  border-radius: 16px; padding: 18px; }"
     )
     layout = QVBoxLayout(card)
-    layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-    icon_box = QLabel(icon)
-    icon_box.setFixedSize(42, 42)
+    icon_box = QLabel()
+    icon_box.setFixedSize(70,70)
     icon_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
     icon_box.setStyleSheet(
         f"background-color: {theme_module.rgba(color, 0.14)}; border-radius: 12px; font-size: 19px;"
     )
-    layout.addWidget(icon_box)
+    # İkon dosyasını yükle ve 32x32'ye boyutlandır
+    icon_path = ICONS_DIR / icon_filename
+    if icon_path.exists():
+        pixmap = QPixmap(str(icon_path))
+        scaled_pixmap = pixmap.scaled(20, 20, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        icon_box.setPixmap(scaled_pixmap)
+    else:
+        icon_box.setText("?")
+        icon_box.setStyleSheet(icon_box.styleSheet() + " font-size: 20px; font-weight: bold;")
+
+    # İkon kutusunu yatayda ortala
+    layout.addWidget(icon_box, alignment=Qt.AlignmentFlag.AlignHCenter)
 
     title_label = QLabel(title)
     title_label.setWordWrap(True)
-    title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    title_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
     title_label.setStyleSheet("font-weight: 600; font-size: 14px; background: transparent;")
     layout.addWidget(title_label)
 
     desc_label = QLabel(description)
     desc_label.setWordWrap(True)
-    desc_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    desc_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
     desc_label.setStyleSheet(f"color: {theme_module.TEXT_SECONDARY}; font-size: 12px; background: transparent;")
     layout.addWidget(desc_label)
 
@@ -105,7 +116,7 @@ class FSAELandingPage(QWidget):
 
         layout.addStretch(1)
 
-        self._start_button = QPushButton("🏎 Başla")
+        self._start_button = QPushButton("Başla")
         self._start_button.setFixedHeight(48)
         self._start_button.setMinimumWidth(200)
         self._start_button.clicked.connect(self.start_pressed.emit)
