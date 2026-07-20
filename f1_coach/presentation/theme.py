@@ -28,6 +28,7 @@ _PALETTES: dict[str, dict[str, str]] = {
         "ORANGE": "#F97316",
         "BLUE": "#38BDF8",
         "YELLOW": "#EAB308",
+        "BUTTON_TEXT": "#F5F5F7",
     },
     "light": {
         "BACKGROUND": "#F5F5F7",
@@ -45,7 +46,62 @@ _PALETTES: dict[str, dict[str, str]] = {
         "ORANGE": "#EA580C",
         "BLUE": "#0284C7",
         "YELLOW": "#CA8A04",
+        "BUTTON_TEXT": "#0B0B0D"
     },
+    "graphite_mint": {
+        "BACKGROUND": "#25272C",         # Graphite
+        "SURFACE": "#2E3138",            
+        "BORDER": "#3F434D",
+        "BORDER_INPUT": "#4C515D",
+        "BORDER_HOVER": "#5C6370",
+        "TEXT_PRIMARY": "#F5F5F7",
+        "TEXT_SECONDARY": "#A1A4AD",
+        "TEXT_MUTED": "#727680",
+        "ACCENT_RED": "#B8F7E4",         # Sky Mint (Ana Vurgu)
+        "ACCENT_RED_DARK": "#99D4C2",    # Sky Mint Hover
+        "PURPLE": "#8B5CF6",
+        "GREEN": "#22C55E",
+        "ORANGE": "#F97316",
+        "BLUE": "#38BDF8",
+        "YELLOW": "#EAB308",
+        "BUTTON_TEXT": "#0B0B0D"
+    },
+    "porcelain_blue": {
+        "BACKGROUND": "#F8F7F4",         # Porcelain
+        "SURFACE": "#FFFFFF",            
+        "BORDER": "#E4E2DC",
+        "BORDER_INPUT": "#D5D2CA",
+        "BORDER_HOVER": "#C2BEB4",
+        "TEXT_PRIMARY": "#1A1A1C",
+        "TEXT_SECONDARY": "#68655E",
+        "TEXT_MUTED": "#98948A",
+        "ACCENT_RED": "#0057FF",         # Signal Blue (Ana Vurgu)
+        "ACCENT_RED_DARK": "#0047D1",    # Signal Blue Hover
+        "PURPLE": "#8B5CF6",
+        "GREEN": "#16A34A",
+        "ORANGE": "#EA580C",
+        "BLUE": "#0284C7",
+        "YELLOW": "#CA8A04",
+        "BUTTON_TEXT": "#FFFFFF"
+    },
+    "violet_dragonfruit": {
+        "BACKGROUND": "#1E1033",         # Night Violet
+        "SURFACE": "#2A1847",            
+        "BORDER": "#3E2563",
+        "BORDER_INPUT": "#4C2F7A",
+        "BORDER_HOVER": "#5F3C96",
+        "TEXT_PRIMARY": "#F3E8FF",
+        "TEXT_SECONDARY": "#C4B5FD",
+        "TEXT_MUTED": "#937DB8",
+        "ACCENT_RED": "#FF4696",         # Dragonfruit (Ana Vurgu)
+        "ACCENT_RED_DARK": "#D63A7D",    # Dragonfruit Hover
+        "PURPLE": "#A78BFA",
+        "GREEN": "#22C55E",
+        "ORANGE": "#F97316",
+        "BLUE": "#38BDF8",
+        "YELLOW": "#EAB308",
+        "BUTTON_TEXT": "#F3E8FF"
+    }
 }
 
 FONT_FAMILY = "'Inter', 'Segoe UI', sans-serif"
@@ -68,7 +124,7 @@ GREEN = _PALETTES["dark"]["GREEN"]
 ORANGE = _PALETTES["dark"]["ORANGE"]
 BLUE = _PALETTES["dark"]["BLUE"]
 YELLOW = _PALETTES["dark"]["YELLOW"]
-
+BUTTON_TEXT = _PALETTES["dark"]["BUTTON_TEXT"]  
 
 def set_active_theme(theme_name: str) -> None:
     """Modül seviyesindeki renk sabitlerini seçilen temaya göre günceller.
@@ -78,8 +134,8 @@ def set_active_theme(theme_name: str) -> None:
     """
     global ACTIVE_THEME_NAME, BACKGROUND, SURFACE, BORDER, BORDER_INPUT, BORDER_HOVER
     global TEXT_PRIMARY, TEXT_SECONDARY, TEXT_MUTED
-    global ACCENT_RED, ACCENT_RED_DARK, PURPLE, GREEN, ORANGE, BLUE, YELLOW
-
+    global ACCENT_RED, ACCENT_RED_DARK, PURPLE, GREEN, ORANGE, BLUE, YELLOW, BUTTON_TEXT
+    
     palette = _PALETTES.get(theme_name, _PALETTES["dark"])
     ACTIVE_THEME_NAME = theme_name if theme_name in _PALETTES else "dark"
 
@@ -98,6 +154,7 @@ def set_active_theme(theme_name: str) -> None:
     ORANGE = palette["ORANGE"]
     BLUE = palette["BLUE"]
     YELLOW = palette["YELLOW"]
+    BUTTON_TEXT = palette["BUTTON_TEXT"]
 
 
 def rgba(hex_color: str, alpha: float) -> str:
@@ -128,7 +185,7 @@ def build_global_stylesheet(base_font_size: int = 13) -> str:
             border: 1px solid {BORDER};
             border-radius: 10px;
             padding: 8px 16px;
-            color: {TEXT_PRIMARY};
+            color: {BUTTON_TEXT};;
         }}
         QPushButton:hover {{
             border-color: {BORDER_HOVER};
@@ -145,6 +202,11 @@ def build_global_stylesheet(base_font_size: int = 13) -> str:
         }}
         QPushButton#PrimaryButton:hover {{
             background-color: {ACCENT_RED_DARK};
+        }}
+
+        QPushButton#PrimaryButton:disabled {{
+            background-color: {rgba(ACCENT_RED, 0.35)};
+            color: {BUTTON_TEXT};
         }}
 
         QLineEdit, QComboBox, QSpinBox, QTextEdit {{

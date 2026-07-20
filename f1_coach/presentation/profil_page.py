@@ -184,6 +184,7 @@ class ProfilPage(QWidget):
         photo_row.addWidget(self._photo_label)
 
         self._upload_button = QPushButton("Fotoğraf Yükle")
+        self._upload_button.setObjectName("PrimaryButton")
         self._upload_button.clicked.connect(self._on_upload_photo)
         photo_row.addWidget(self._upload_button)
         photo_row.addStretch(1)
@@ -216,20 +217,11 @@ class ProfilPage(QWidget):
         # --- Aksiyonlar ---
         action_row = QHBoxLayout()
         self._edit_button = QPushButton("Düzenle")
+        self._edit_button.setObjectName("PrimaryButton")
         self._edit_button.clicked.connect(self._enable_editing)
         self._save_button = QPushButton("Kaydet")
         self._save_button.clicked.connect(self._on_save)
-        self._save_button.setStyleSheet(
-            "QPushButton {"
-            "  background-color: #16161A; color: #6B6B72;"
-            "  border: 1px solid #26262B; border-radius: 10px;"
-            "  padding: 8px 16px; font-weight: 600;"
-            "}"
-            "QPushButton:enabled {"
-            "  background-color: #E10600; color: white; border: none;"
-            "}"
-            "QPushButton:enabled:hover { background-color: #A00400; }"
-        )
+
         action_row.addWidget(self._edit_button)
         action_row.addWidget(self._save_button)
         action_row.addStretch(1)
@@ -348,7 +340,22 @@ class ProfilPage(QWidget):
             f"  border: 1px solid {theme_module.BORDER}; border-radius: 16px; }}"
         )
         self._update_driver_summary()  # takım rozeti + istatistik satırlarını da tazeler
-    
+        self._apply_save_button_theme()
+
+    def _apply_save_button_theme(self) -> None:
+        """Kaydet butonunun rengini güncel tema değerleriyle yeniden uygular."""
+        self._save_button.setStyleSheet(
+            "QPushButton {"
+            f"  background-color: {theme_module.SURFACE}; color: {theme_module.TEXT_MUTED};"
+            f"  border: 1px solid {theme_module.BORDER}; border-radius: 10px;"
+            "  padding: 8px 16px; font-weight: 600;"
+            "}"
+            "QPushButton:enabled {"
+            f"  background-color: {theme_module.ACCENT_RED}; color: {theme_module.BUTTON_TEXT}; border: none;"
+            "}"
+            f"QPushButton:enabled:hover {{ background-color: {theme_module.ACCENT_RED_DARK}; }}"
+        )
+
     def _update_driver_summary(self) -> None:
         """Sağ sütundaki takım rozetini ve istatistikleri günceller."""
         team = self._team_combo.currentText()

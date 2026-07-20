@@ -151,7 +151,7 @@ class F1_25LandingPage(QWidget):
             "QPushButton {"
             "  background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1,"
             f"    stop:0 {theme_module.ACCENT_RED}, stop:1 {theme_module.ACCENT_RED_DARK});"
-            "  color: white; border: none; border-radius: 24px;"
+            f"  color: {theme_module.BUTTON_TEXT}; border: none; border-radius: 24px;"
             "  font-size: 15px; font-weight: 700;"
             "}"
             f"QPushButton:hover {{ background-color: {theme_module.ACCENT_RED_DARK}; }}"

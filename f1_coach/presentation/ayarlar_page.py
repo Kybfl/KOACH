@@ -47,8 +47,13 @@ _PROVIDERS = [
     ("anthropic", "Anthropic"),
     ("gemini", "Gemini"),
 ]
-_THEMES = [("dark", "Koyu"), ("light", "Açık")]
-
+_THEMES = [
+    ("dark", "Koyu"),
+    ("light", "Açık"),
+    ("graphite_mint", "Grafit & Nane"),
+    ("porcelain_blue", "Porselen & Mavi"),
+    ("violet_dragonfruit", "Menekşe & Ejder Meyvesi"),
+]
 class _NoScrollComboBox(QComboBox):
     """Scroll ile yanlışlıkla değer değişmesini engeller.
 

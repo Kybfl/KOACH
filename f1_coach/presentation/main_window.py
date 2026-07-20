@@ -163,17 +163,6 @@ class MainWindow(QMainWindow):
         title.setStyleSheet("font-size: 13px; font-weight: 700")
         layout.addWidget(title)
 
-        badge = QLabel("F1 25")
-        badge.setStyleSheet(
-            "background-color: rgba(225,6,0,0.12);"
-            "border: 1px solid rgba(225,6,0,0.2);"
-            "border-radius: 4px;"
-            "color: #E10600; font-size: 9px; font-weight: 700;"
-            "padding: 1px 5px;"
-        )
-        layout.addWidget(badge)
-        layout.addStretch(1)
-
         return bar
     
     def _build_pages(self) -> None:
