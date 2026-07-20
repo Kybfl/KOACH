@@ -33,7 +33,18 @@ def get_api_key(provider: str) -> str:
         logger.warning("API key okunamadı (provider=%s): %s", provider, exc)
         return ""
 
-
 def has_api_key(provider: str) -> bool:
     """Belirtilen sağlayıcı için geçerli bir API key kayıtlı mı?"""
     return bool(get_api_key(provider))
+
+def delete_api_key(provider: str) -> None:
+    """Belirtilen sağlayıcı için saklanan API key'i siler.
+
+    Zaten kayıtlı bir key yoksa (keyring.errors.PasswordDeleteError) veya
+    keyring backend'i kurulu değilse sessizce loglanır — save_api_key ve
+    get_api_key ile aynı "asla çökme" prensibi.
+    """
+    try:
+        keyring.delete_password(_SERVICE_NAME, provider)
+    except Exception as exc:
+        logger.warning("API key silinemedi (provider=%s): %s", provider, exc)

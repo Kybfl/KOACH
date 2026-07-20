@@ -23,9 +23,6 @@ from PyQt6.QtWidgets import (
 
 from f1_coach.presentation import theme as theme_module
 from f1_coach.presentation.theme_manager import ThemeManager
-from f1_coach.domain.ports.profile_repository import ProfileRepository
-from f1_coach.infrastructure.logging.logger import get_logger
-from f1_coach.infrastructure.security.credential_store import get_api_key, save_api_key
 from f1_coach.presentation.theme import (
     ACCENT_RED,
     BORDER,
@@ -35,6 +32,13 @@ from f1_coach.presentation.theme import (
     TEXT_SECONDARY,
     rgba,
 )
+
+from f1_coach.domain.ports.profile_repository import ProfileRepository
+
+from f1_coach.infrastructure.logging.logger import get_logger
+from f1_coach.infrastructure.security.credential_store import get_api_key, save_api_key, delete_api_key
+
+
 
 logger = get_logger(__name__)
 
@@ -294,6 +298,8 @@ class AyarlarPage(QWidget):
 
         if api_key:
             save_api_key(provider, api_key)
+        else:
+            delete_api_key(provider)
 
         logger.info("Ayarlar kaydedildi: provider=%s udp_port=%d", provider, profile.udp_port)
 
