@@ -107,7 +107,6 @@ class BannerButton(QFrame):
 
     def __init__(self, banner_path: Path | None, accent: str) -> None:
         super().__init__()
-        self._accent = ACCENT_RED
         self.setFixedSize(44, 44)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
@@ -130,8 +129,10 @@ class BannerButton(QFrame):
 
     def _set_ring(self, active: bool) -> None:
         if active:
+            # Temadaki güncel vurgu/buton rengini modülden anlık olarak çekiyoruz
+            current_accent = theme_module.ACCENT_RED
             self.setStyleSheet(
-                f"QFrame {{ background-color: #000000; border: 1px solid {self._accent};"
+                f"QFrame {{ background-color: #000000; border: 2px solid {current_accent};"
                 "  border-radius: 10px; }"
             )
         else:
@@ -199,8 +200,9 @@ class _ProfileBadgeButton(QFrame):
         )
 
     def _set_ring(self, active: bool) -> None:
+        current_accent = theme_module.ACCENT_RED
         if active:
-            self.setStyleSheet(f"QFrame {{ border: 2px solid {self._accent}; border-radius: 22px; background: transparent; }}")
+            self.setStyleSheet(f"QFrame {{ border: 2px solid {current_accent};; border-radius: 22px; background: transparent; }}")
         else:
             self.setStyleSheet("QFrame { border: 1px solid transparent; border-radius: 22px;background: transparent; }")
 
