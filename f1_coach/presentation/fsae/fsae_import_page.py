@@ -83,6 +83,7 @@ class FSAEImportPage(QWidget):
         # --- Dosya seçimi ---
         file_row = QHBoxLayout()
         self._select_file_button = QPushButton("Dosya Seç")
+        self._select_file_button.setObjectName("PrimaryButton")
         self._select_file_button.clicked.connect(self._on_select_file)
         file_row.addWidget(self._select_file_button)
 
@@ -121,7 +122,8 @@ class FSAEImportPage(QWidget):
         self._result_detail.setWordWrap(True)
         self._result_detail.setStyleSheet(f"color: {theme_module.TEXT_SECONDARY}; font-size: 12px;")
         result_layout.addWidget(self._result_detail)
-        self._go_to_labeling_button = QPushButton("Etiketlemeye Geç →")
+        self._go_to_labeling_button = QPushButton("Etiketlemeye Geç")
+        self._go_to_labeling_button.setObjectName("PrimaryButton")
         self._go_to_labeling_button.clicked.connect(self._on_go_to_labeling)
         result_layout.addWidget(self._go_to_labeling_button)
         layout.addWidget(self._result_card)

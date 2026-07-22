@@ -35,16 +35,19 @@ class FSAESecondaryPanel(QWidget):
         layout.setSpacing(8)
 
         self._import_button = QPushButton("İçe Aktar")
+        self._import_button.setObjectName("PrimaryButton")
         self._import_button.clicked.connect(self.import_clicked.emit)
-        layout.addWidget(self._import_button)
+        layout.addWidget(self._import_button,1)
 
         self._labeling_button = QPushButton("Etiketleme")
+        self._labeling_button.setObjectName("PrimaryButton")
         self._labeling_button.clicked.connect(self.labeling_clicked.emit)
-        layout.addWidget(self._labeling_button)
+        layout.addWidget(self._labeling_button,1)
 
         self._chart_button = QPushButton("Grafik")
+        self._chart_button.setObjectName("PrimaryButton")
         self._chart_button.clicked.connect(self.chart_clicked.emit)
-        layout.addWidget(self._chart_button)
+        layout.addWidget(self._chart_button,1)
 
         layout.addStretch(1)
 

@@ -37,7 +37,10 @@ from f1_coach.domain.ports.profile_repository import ProfileRepository
 
 from f1_coach.infrastructure.logging.logger import get_logger
 from f1_coach.infrastructure.security.credential_store import get_api_key, save_api_key, delete_api_key
-
+from f1_coach.presentation.no_scroll_widgets import (
+    NoScrollComboBox as _NoScrollComboBox,
+    NoScrollSpinBox as _NoScrollSpinBox,
+)
 
 
 logger = get_logger(__name__)
@@ -54,28 +57,6 @@ _THEMES = [
     ("porcelain_blue", "Porselen & Mavi"),
     ("violet_dragonfruit", "Menekşe & Ejder Meyvesi"),
 ]
-class _NoScrollComboBox(QComboBox):
-    """Scroll ile yanlışlıkla değer değişmesini engeller.
-
-    Widget klavye odağına sahip değilse (yani kullanıcı henüz tıklamadıysa)
-    fare tekerleği olayını yok sayar, event'i sayfanın scroll area'sına iletir.
-    """
-
-    def wheelEvent(self, event) -> None:  # type: ignore[no-untyped-def]
-        if not self.hasFocus():
-            event.ignore()
-        else:
-            super().wheelEvent(event)
-
-
-class _NoScrollSpinBox(QSpinBox):
-    """Scroll ile yanlışlıkla değer değişmesini engeller (bkz. _NoScrollComboBox)."""
-
-    def wheelEvent(self, event) -> None:  # type: ignore[no-untyped-def]
-        if not self.hasFocus():
-            event.ignore()
-        else:
-            super().wheelEvent(event)
 
 def _make_section_card(dot_color: str, title: str) -> tuple[QFrame, QVBoxLayout]:
     """Renkli nokta başlıklı ayarlar kartı iskeleti döner (kart, içerik layout'u)."""

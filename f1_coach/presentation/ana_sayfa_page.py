@@ -9,22 +9,31 @@ Onboarding turu şimdilik kapsam dışı bırakıldı (kullanıcı isteği). Say
 """
 
 from pathlib import Path
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QPixmap 
+from PyQt6.QtCore import Qt, pyqtSignal, QSize
+from PyQt6.QtGui import QPixmap, QIcon 
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QMessageBox,
+    QPushButton,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
 
+
 from f1_coach.presentation import theme as theme_module
 from f1_coach.presentation.theme_manager import ThemeManager
+
+from f1_coach.domain.ports.fsae.vehicle_session_repository import VehicleSessionRepository
 from f1_coach.domain.ports.profile_repository import ProfileRepository
 from f1_coach.domain.ports.f125.session_repository import SessionRepository
+
+from f1_coach.infrastructure.storage.fsae.parquet_writer import delete_session_files
 from f1_coach.infrastructure.logging.logger import get_logger
 from f1_coach.infrastructure.security.credential_store import has_api_key
+
 from f1_coach.presentation.banner_widget import WarningBanner
 
 
@@ -101,6 +110,7 @@ class _SessionRow(QFrame):
     """
 
     clicked = pyqtSignal(int)
+    delete_clicked = pyqtSignal(int)
 
     def __init__(self, session_id: int, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -152,6 +162,48 @@ def _make_session_row(session) -> QFrame:  # type: ignore[no-untyped-def]
 
     return row
 
+def _make_fsae_session_row(session) -> QFrame:  # type: ignore[no-untyped-def]
+    row = _SessionRow(session.id)
+    status_color = theme_module.GREEN if session.is_labeled else theme_module.YELLOW
+    row.setStyleSheet(
+        f"QFrame {{ background-color: {theme_module.SURFACE}; border: 1px solid {theme_module.BORDER};"
+        "  border-radius: 10px; }"
+        f"QFrame:hover {{ border: 1px solid #9B30FF; }}"
+    )
+    layout = QHBoxLayout(row)
+    layout.setContentsMargins(14, 10, 14, 10)
+
+    dot = QLabel("●")
+    dot.setStyleSheet(f"color: {status_color}; font-size: 8px; background: transparent; border: none;")
+    layout.addWidget(dot)
+
+    name_label = QLabel(session.name)
+    name_label.setStyleSheet("font-weight: 600; font-size: 13px; background: transparent; border: none;")
+    layout.addWidget(name_label, stretch=1)
+
+    status_text = "Etiketlendi" if session.is_labeled else "Etiketleme bekliyor"
+    status_label = QLabel(status_text)
+    status_label.setStyleSheet(
+        f"color: {status_color}; font-size: 12px; font-weight: 600; background: transparent; border: none;"
+    )
+    layout.addWidget(status_label)
+
+    date_label = QLabel(session.imported_at.strftime("%d.%m.%Y"))
+    date_label.setStyleSheet(f"color: { theme_module.TEXT_SECONDARY}; font-size: 12px; background: transparent; border: none;")
+    layout.addWidget(date_label)
+
+    delete_button = QPushButton() 
+    icon_path = ICONS_DIR / "trash.svg"
+    delete_button.setIcon(QIcon(str(icon_path)))
+    delete_button.setIconSize(QSize(14, 14)) 
+    delete_button.setObjectName("PrimaryButton")
+    delete_button.setFixedSize(27, 27)
+    delete_button.setToolTip("Session'ı sil")
+    delete_button.clicked.connect(lambda: row.delete_clicked.emit(session.id))
+    layout.addWidget(delete_button)
+
+    return row
+
 
 class AnaSayfaPage(QWidget):
     """Uygulama açılışında karşılayan hub ekranı.
@@ -165,18 +217,32 @@ class AnaSayfaPage(QWidget):
 
     settings_requested = pyqtSignal()
     session_selected = pyqtSignal(int)
+    fsae_session_selected = pyqtSignal(int)   
 
     def __init__(
         self,
         profile_repo: ProfileRepository,
         session_repo: SessionRepository,
+        vehicle_session_repo: VehicleSessionRepository,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self._profile_repo = profile_repo
         self._session_repo = session_repo
+        self._vehicle_session_repo = vehicle_session_repo
 
-        self._layout = QVBoxLayout(self)
+        outer_layout = QVBoxLayout(self)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        outer_layout.addWidget(scroll_area)
+
+        content = QWidget()
+        scroll_area.setWidget(content)
+
+        self._layout = QVBoxLayout(content)
         self._layout.setContentsMargins(32, 32, 32, 32)
         self._layout.setSpacing(22)
 
@@ -219,6 +285,16 @@ class AnaSayfaPage(QWidget):
         self._sessions_container.setSpacing(8)
         self._layout.addLayout(self._sessions_container)
 
+        fsae_sessions_header = QLabel("SON FSAE SESSION'LARI")
+        fsae_sessions_header.setStyleSheet(
+            f"color: { theme_module.TEXT_SECONDARY}; font-size: 11px; font-weight: 600;"
+        )
+        self._layout.addWidget(fsae_sessions_header)
+
+        self._fsae_sessions_container = QVBoxLayout()
+        self._fsae_sessions_container.setSpacing(8)
+        self._layout.addLayout(self._fsae_sessions_container)
+
         self._layout.addStretch(1)
         ThemeManager.instance().theme_changed.connect(self.refresh)
         self.refresh()
@@ -238,6 +314,7 @@ class AnaSayfaPage(QWidget):
         self._update_greeting()
         self._update_ai_banner()
         self._update_recent_sessions()
+        self._update_recent_fsae_sessions()
 
     def _update_greeting(self) -> None:
         profile = self._profile_repo.get_current()
@@ -288,3 +365,71 @@ class AnaSayfaPage(QWidget):
             self._sessions_container.addWidget(row)
 
         logger.debug("Son session listesi guncellendi: %d kayit gosteriliyor.", min(len(sessions), _MAX_RECENT_SESSIONS))
+
+    def _update_recent_fsae_sessions(self) -> None:
+        while self._fsae_sessions_container.count():
+            item = self._fsae_sessions_container.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        sessions = self._vehicle_session_repo.get_all()
+        if not sessions:
+            empty = QFrame()
+            empty.setFrameShape(QFrame.Shape.NoFrame)
+            empty.setStyleSheet(
+                f"QFrame {{ border: 1px dashed { theme_module.BORDER}; border-radius: 14px; }}"
+            )
+            empty_layout = QVBoxLayout(empty)
+            empty_layout.setContentsMargins(24, 32, 24, 32)
+            title = QLabel("Henüz FSAE session'ı yok")
+            title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            title.setStyleSheet("font-size: 14px; font-weight: 500; background: transparent;")
+            empty_layout.addWidget(title)
+            desc = QLabel(
+                "Bir CAN log dosyasını içe aktarıp etiketledikten sonra "
+                "session'lar burada listelenecek."
+            )
+            desc.setWordWrap(True)
+            desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            desc.setStyleSheet(f"color: { theme_module.TEXT_MUTED}; font-size: 12px; background: transparent;")
+            empty_layout.addWidget(desc)
+            self._fsae_sessions_container.addWidget(empty)
+            return
+
+        for session in sessions[:_MAX_RECENT_SESSIONS]:
+            row = _make_fsae_session_row(session)
+            row.clicked.connect(self.fsae_session_selected.emit)
+            row.delete_clicked.connect(self._on_fsae_delete_clicked)   
+            self._fsae_sessions_container.addWidget(row)
+    
+
+    def _on_fsae_delete_clicked(self, session_id: int) -> None:
+        """FSAE session satırındaki çöp kutusu ikonuna basıldığında çağrılır.
+
+        Onay alındıktan sonra hem SQLite kaydını (VehicleSessionRepository.delete
+        — CASCADE ile ChannelMapping'leri de siler) hem de diskteki Parquet
+        dosyalarını (raw_can_frames + decoded_telemetry) kaldırır. Repository
+        silme işi filesystem'i bilmiyor — session_gecmisi_page.py'deki F125
+        silme akışıyla aynı sorumluluk ayrımı.
+        """
+        reply = QMessageBox.question(
+            self, "FSAE SESSION",
+            "Bu FSAE session'ı ve tüm etiketleme/telemetri verileri kalıcı olarak "
+            "silinecek. Devam edilsin mi?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        session = self._vehicle_session_repo.get_by_id(session_id)
+        if session is None:
+            return
+
+        session_identifier = Path(session.raw_can_file).parent.name if session.raw_can_file else ""
+
+        self._vehicle_session_repo.delete(session_id)
+        if session_identifier:
+            delete_session_files(session_identifier)
+
+        logger.info("FSAE session silindi: id=%d name=%s", session_id, session.name)
+        self._update_recent_fsae_sessions()

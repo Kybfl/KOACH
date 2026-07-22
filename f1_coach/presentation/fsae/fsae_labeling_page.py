@@ -20,6 +20,7 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDoubleSpinBox,
+    QFormLayout,
     QFrame,
     QHBoxLayout,
     QHeaderView,
@@ -32,8 +33,8 @@ from PyQt6.QtWidgets import (
     QTableWidgetItem,
     QVBoxLayout,
     QWidget,
+    QScrollArea,
 )
-
 from f1_coach.application.fsae.channel_decoder import decode_telemetry
 from f1_coach.domain.models.fsae.channel_mapping import ChannelMapping
 from f1_coach.domain.models.fsae.vehicle_session import VehicleSession
@@ -47,6 +48,11 @@ from f1_coach.infrastructure.storage.fsae.parquet_writer import (
 )
 from f1_coach.presentation import theme as theme_module
 from f1_coach.presentation.theme_manager import ThemeManager
+from f1_coach.presentation.no_scroll_widgets import (
+    NoScrollComboBox,
+    NoScrollDoubleSpinBox,
+    NoScrollSpinBox,
+)
 
 logger = get_logger(__name__)
 
@@ -84,9 +90,18 @@ class FSAELabelingPage(QWidget):
         self._raw_frames_df: pd.DataFrame | None = None
         self._mappings: list[ChannelMapping] = []
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(32, 24, 32, 24)
-        layout.setSpacing(14)
+        outer_layout = QVBoxLayout(self)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        outer_layout.addWidget(scroll_area)
+
+        content = QWidget()
+        scroll_area.setWidget(content)
+
+        layout = QVBoxLayout(content)
 
         self._header_label = QLabel("Etiketleme")
         self._header_label.setStyleSheet("font-size: 20px; font-weight: 700;")
@@ -106,8 +121,9 @@ class FSAELabelingPage(QWidget):
         self._ids_table.setHorizontalHeaderLabels(["CAN ID", "Frame Sayısı", "Örnek Byte'lar"])
         self._ids_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._ids_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self._ids_table.setMaximumHeight(180)
+        self._ids_table.setMinimumHeight(150)
         self._ids_table.hide()
+        self._ids_table.cellClicked.connect(self._on_id_table_clicked)
         layout.addWidget(self._ids_table)
 
         # --- Yeni kanal ekleme formu ---
@@ -118,55 +134,56 @@ class FSAELabelingPage(QWidget):
 
         self._form_frame = QFrame()
         self._form_frame.hide()
-        form_layout = QHBoxLayout(self._form_frame)
+        form_layout = QFormLayout(self._form_frame)
 
         self._can_id_input = QLineEdit()
-        self._can_id_input.setPlaceholderText("CAN ID (0x123)")
-        form_layout.addWidget(self._can_id_input)
+        self._can_id_input.setPlaceholderText("0x123")
+        form_layout.addRow("CAN ID:", self._can_id_input)
 
-        self._start_byte_input = QSpinBox()
+        self._start_byte_input = NoScrollSpinBox()
         self._start_byte_input.setRange(0, 7)
-        self._start_byte_input.setPrefix("byte ")
-        form_layout.addWidget(self._start_byte_input)
+        form_layout.addRow("Başlangıç Byte:", self._start_byte_input)
 
-        self._bit_length_input = QSpinBox()
+        self._bit_length_input = NoScrollSpinBox()
         self._bit_length_input.setRange(1, 64)
         self._bit_length_input.setValue(16)
-        self._bit_length_input.setSuffix(" bit")
-        form_layout.addWidget(self._bit_length_input)
+        form_layout.addRow("Bit Uzunluğu:", self._bit_length_input)
 
-        self._endian_combo = QComboBox()
+        self._endian_combo = NoScrollComboBox()
         self._endian_combo.addItems(["Little-endian", "Big-endian"])
-        form_layout.addWidget(self._endian_combo)
+        self._endian_combo.setToolTip(
+            "Little-endian: düşük değerli byte önce (çoğu ECU/mikrodenetleyicide varsayılan).\n"
+            "Big-endian: yüksek değerli byte önce.\n"
+            "Emin değilsen Little-endian ile başla; grafikte değerler anlamsız görünürse değiştir."
+        )
+        form_layout.addRow("Endian:", self._endian_combo)
 
-        self._signed_checkbox = QCheckBox("İşaretli (signed)")
-        form_layout.addWidget(self._signed_checkbox)
+        self._signed_checkbox = QCheckBox("İşaretli (signed) — negatif değer alabilir")
+        form_layout.addRow(self._signed_checkbox)
 
-        self._scale_input = QDoubleSpinBox()
+        self._scale_input = NoScrollDoubleSpinBox()
         self._scale_input.setRange(-1_000_000, 1_000_000)
-        self._scale_input.setDecimals(6)
+        self._scale_input.setDecimals(4)
         self._scale_input.setValue(1.0)
-        self._scale_input.setPrefix("× ")
-        form_layout.addWidget(self._scale_input)
+        form_layout.addRow("Ölçek (gerçek değer = ham × ölçek + offset):", self._scale_input)
 
-        self._offset_input = QDoubleSpinBox()
+        self._offset_input = NoScrollDoubleSpinBox()
         self._offset_input.setRange(-1_000_000, 1_000_000)
-        self._offset_input.setDecimals(6)
-        self._offset_input.setPrefix("+ ")
-        form_layout.addWidget(self._offset_input)
+        self._offset_input.setDecimals(4)
+        form_layout.addRow("Offset:", self._offset_input)
 
         self._name_input = QLineEdit()
-        self._name_input.setPlaceholderText("Kanal adı (ör. on_sol_tekerlek_hizi)")
-        form_layout.addWidget(self._name_input, stretch=1)
+        self._name_input.setPlaceholderText("örn. on_sol_tekerlek_hizi")
+        form_layout.addRow("Kanal Adı:", self._name_input)
 
         self._unit_input = QLineEdit()
-        self._unit_input.setPlaceholderText("Birim (ör. km/s)")
-        self._unit_input.setMaximumWidth(90)
-        form_layout.addWidget(self._unit_input)
+        self._unit_input.setPlaceholderText("örn. km/s")
+        form_layout.addRow("Birim:", self._unit_input)
 
         self._add_mapping_button = QPushButton("Ekle")
+        self._add_mapping_button.setObjectName("PrimaryButton")
         self._add_mapping_button.clicked.connect(self._on_add_mapping)
-        form_layout.addWidget(self._add_mapping_button)
+        form_layout.addRow(self._add_mapping_button)
 
         layout.addWidget(self._form_frame)
 
@@ -183,10 +200,12 @@ class FSAELabelingPage(QWidget):
         )
         self._mappings_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._mappings_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self._mappings_table.setMinimumHeight(180)
         self._mappings_table.hide()
         layout.addWidget(self._mappings_table)
 
         self._remove_mapping_button = QPushButton("Seçili Kanalı Sil")
+        self._remove_mapping_button.setObjectName("PrimaryButton")
         self._remove_mapping_button.clicked.connect(self._on_remove_selected_mapping)
         self._remove_mapping_button.hide()
         layout.addWidget(self._remove_mapping_button)
@@ -305,6 +324,14 @@ class FSAELabelingPage(QWidget):
         if removed.is_persisted:
             self._mapping_repo.delete(removed.id)
         self._refresh_mappings_table()
+    
+    def _on_id_table_clicked(self, row: int, _column: int) -> None:
+        """Bulunan CAN ID tablosunda bir satıra tıklanınca, o ID'yi doğrudan
+        'Yeni Kanal Ekle' formundaki CAN ID kutusuna yazar."""
+        id_item = self._ids_table.item(row, 0)
+        if id_item is None:
+            return
+        self._can_id_input.setText(id_item.text())
 
     def _refresh_mappings_table(self) -> None:
         self._mappings_table.setRowCount(len(self._mappings))

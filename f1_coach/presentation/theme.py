@@ -198,7 +198,7 @@ def build_global_stylesheet(base_font_size: int = 13) -> str:
             background-color: {ACCENT_RED};
             border: none;
             font-weight: 600;
-            padding: 10px 20px;
+            padding:10 20;
         }}
         QPushButton#PrimaryButton:hover {{
             background-color: {ACCENT_RED_DARK};
@@ -269,5 +269,80 @@ def build_global_stylesheet(base_font_size: int = 13) -> str:
         }}
         QTabBar::tab:hover {{
             color: {TEXT_PRIMARY};
+        }}
+        QScrollBar:vertical {{
+            background: transparent;
+            width: 10px;
+            margin: 0px;
+        }}
+        QScrollBar::handle:vertical {{
+            background: {BORDER_HOVER};
+            border-radius: 5px;
+            min-height: 24px;
+        }}
+        QScrollBar::handle:vertical:hover {{
+            background: {TEXT_MUTED};
+        }}
+        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+            height: 0px;
+        }}
+        QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+            background: transparent;
+        }}
+
+        QScrollBar:horizontal {{
+            background: transparent;
+            height: 10px;
+            margin: 0px;
+        }}
+        QScrollBar::handle:horizontal {{
+            background: {BORDER_HOVER};
+            border-radius: 5px;
+            min-width: 24px;
+        }}
+        QScrollBar::handle:horizontal:hover {{
+            background: {TEXT_MUTED};
+        }}
+        QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+            width: 0px;
+        }}
+        QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
+            background: transparent;
+        }}
+        QToolTip {{
+            background-color: {SURFACE};
+            color: {TEXT_PRIMARY};
+            border: 1px solid {BORDER};
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 12px;
+        }}
+        QCheckBox::indicator {{
+            width: 16px;
+            height: 16px;
+            border: 1px solid {BORDER_INPUT};
+            border-radius: 4px;
+            background-color: {SURFACE};
+        }}
+        QCheckBox::indicator:checked {{
+            background-color: {ACCENT_RED};
+            border-color: {ACCENT_RED};
+        }}
+        QCheckBox::indicator:hover {{
+            border-color: {BORDER_HOVER};
+        }}
+        QListView::indicator {{
+            width: 16px;
+            height: 16px;
+            border: 1px solid {BORDER_INPUT};
+            border-radius: 4px;
+            background-color: {SURFACE};
+        }}
+        QListView::indicator:checked {{
+            background-color: {ACCENT_RED};
+            border-color: {ACCENT_RED};
+        }}
+        QListView::indicator:hover {{
+            border-color: {BORDER_HOVER};
         }}
     """

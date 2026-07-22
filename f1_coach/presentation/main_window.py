@@ -36,15 +36,12 @@ from f1_coach.infrastructure.storage.repositories.f125.sqlite_lap_repository imp
     SQLiteLapRepository,
 )
 
+from f1_coach.presentation.fsae.fsae_chart_page import FSAEChartPage
 from f1_coach.presentation.fsae.fsae_labeling_page import FSAELabelingPage
 from f1_coach.presentation.fsae.fsae_import_page import FSAEImportPage
 from f1_coach.presentation.fsae.fsae_landing_page import FSAELandingPage
 from f1_coach.presentation.fsae.fsae_secondary_panel import FSAESecondaryPanel
-from f1_coach.presentation.fsae.fsae_placeholder_pages import (
-    make_fsae_import_placeholder,
-    make_fsae_labeling_placeholder,
-    make_fsae_chart_placeholder,
-)
+
 
 from f1_coach.presentation.f125.f1_25_landing_page import F1_25LandingPage
 from f1_coach.presentation.f125.session_gecmisi_page import SessionGecmisiPage
@@ -109,7 +106,7 @@ class MainWindow(QMainWindow):
         root_layout = QHBoxLayout(body)
         root_layout.setContentsMargins(0, 0, 0, 0)
         root_layout.setSpacing(0)
-        outer_layout.addWidget(body, stretch=1)
+        outer_layout.addWidget(body)
 
         # --- Katman 1: Sidebar ---
         self._sidebar = Sidebar()
@@ -139,8 +136,8 @@ class MainWindow(QMainWindow):
         right_layout.setSpacing(0)
         right_layout.addWidget(self._secondary_panel)
         right_layout.addWidget(self._fsae_secondary_panel)
-        right_layout.addWidget(self._content_stack, stretch=1)
-        root_layout.addWidget(right_column, stretch=1)
+        right_layout.addWidget(self._content_stack)
+        root_layout.addWidget(right_column)
         
         self._build_pages()
         self._route_on_startup()
@@ -167,9 +164,10 @@ class MainWindow(QMainWindow):
     
     def _build_pages(self) -> None:
         """Her sayfayı stack'e ekler ve index'ini saklar."""
-        self._ana_sayfa_page = AnaSayfaPage(self._profile_repo, self._session_repo)
+        self._ana_sayfa_page = AnaSayfaPage(self._profile_repo, self._session_repo, self._vehicle_session_repo)
         self._ana_sayfa_page.settings_requested.connect(self._show_ayarlar)
         self._ana_sayfa_page.session_selected.connect(self._open_session_from_history)
+        self._ana_sayfa_page.fsae_session_selected.connect(self._open_fsae_session_from_history)
         self._page_ana_sayfa = self._content_stack.addWidget(self._ana_sayfa_page)
 
         self._f1_25_landing_page = F1_25LandingPage()
@@ -210,8 +208,10 @@ class MainWindow(QMainWindow):
         self._fsae_labeling_page.decoding_completed.connect(self._on_fsae_decoding_completed)
         self._page_fsae_labeling = self._content_stack.addWidget(self._fsae_labeling_page)
 
-        self._fsae_chart_page = make_fsae_chart_placeholder()
+        self._fsae_chart_page = FSAEChartPage(self._vehicle_session_repo)
+        self._fsae_chart_page.session_finished.connect(self._on_fsae_session_finished)
         self._page_fsae_chart = self._content_stack.addWidget(self._fsae_chart_page)
+        
 
         self._refresh_coaching_engine()
         self._refresh_profile_badge()
@@ -283,17 +283,19 @@ class MainWindow(QMainWindow):
         self._content_stack.setCurrentIndex(self._page_fsae_chart)
 
     def _on_fsae_session_imported(self, session_id: int) -> None:
-        """İçe aktarma tamamlandığında Etiketleme sekmesine geçer.
-        """
         self._active_fsae_session_id = session_id
         self._fsae_labeling_page.load_session(session_id)
         self._show_fsae_labeling()
 
     def _on_fsae_decoding_completed(self, session_id: int) -> None:
-        """Çözümleme bitince Grafik sekmesine geçer — o sayfa yazıldığında
-        session_id'yi oraya da iletmemiz gerekecek."""
         self._active_fsae_session_id = session_id
+        self._fsae_chart_page.load_session(session_id)
         self._show_fsae_chart()
+
+    def _on_fsae_session_finished(self) -> None:
+        """Grafik sayfasındaki 'Session'ı Bitir' butonuna basıldığında çağrılır."""
+        self._active_fsae_session_id = None
+        self._show_ana_sayfa()
 
     def on_fsae_start_pressed(self) -> None:
         """FSAE Landing sayfasındaki "Başla" butonu buraya bağlanır.
@@ -332,6 +334,28 @@ class MainWindow(QMainWindow):
         self._lap_analizi_page.load_session(session_id)
         self._secondary_panel.open_panel()
         self._content_stack.setCurrentIndex(self._page_lap_analizi)
+
+    def _open_fsae_session_from_history(self, session_id: int) -> None:
+        """Ana Sayfa'daki 'Son FSAE Session'ları' listesinden bir karta tıklanınca
+        o session'ı açar. Etiketlenmiş olsun ya da olmasın, hem Etiketleme hem
+        Grafik sayfası bu session ile yüklenir — sekmeler arası geçiş yaptığında
+        ikisi de tutarlı kalsın diye (aksi halde ziyaret edilmeyen sekme önceki
+        açık session'ı göstermeye devam ediyordu)."""
+        session = self._vehicle_session_repo.get_by_id(session_id)
+        if session is None:
+            return
+
+        self._active_fsae_session_id = session_id
+        self._close_all_secondary_panels()
+        self._fsae_secondary_panel.open_panel()
+
+        self._fsae_labeling_page.load_session(session_id)
+        self._fsae_chart_page.load_session(session_id)
+
+        if session.is_labeled:
+            self._show_fsae_chart()
+        else:
+            self._show_fsae_labeling()
 
     def _refresh_coaching_engine(self) -> None:
         """Profildeki AI ayarlarına göre CoachingEngine kurar; eksikse None bırakır."""
