@@ -25,6 +25,7 @@ from PyQt6.QtWidgets import (
 
 from f1_coach.presentation import theme as theme_module
 from f1_coach.presentation.theme_manager import ThemeManager
+from f1_coach.presentation.confirm_dialog import confirm
 
 from f1_coach.domain.ports.fsae.vehicle_session_repository import VehicleSessionRepository
 from f1_coach.domain.ports.profile_repository import ProfileRepository
@@ -275,21 +276,21 @@ class AnaSayfaPage(QWidget):
         ThemeManager.instance().theme_changed.connect(self._rebuild_feature_cards)
 
         # --- Son session'lar ---
-        sessions_header = QLabel("SON SESSIONLAR")
-        sessions_header.setStyleSheet(
+        self.f125_sessions_header = QLabel("SON F1 25 SESSION'LARI")
+        self.f125_sessions_header.setStyleSheet(
             f"color: { theme_module.TEXT_SECONDARY}; font-size: 11px; font-weight: 600;"
         )
-        self._layout.addWidget(sessions_header)
+        self._layout.addWidget(self.f125_sessions_header)
 
         self._sessions_container = QVBoxLayout()
         self._sessions_container.setSpacing(8)
         self._layout.addLayout(self._sessions_container)
 
-        fsae_sessions_header = QLabel("SON FSAE SESSION'LARI")
-        fsae_sessions_header.setStyleSheet(
+        self._fsae_sessions_header = QLabel("SON FSAE SESSION'LARI")
+        self._fsae_sessions_header.setStyleSheet(
             f"color: { theme_module.TEXT_SECONDARY}; font-size: 11px; font-weight: 600;"
         )
-        self._layout.addWidget(fsae_sessions_header)
+        self._layout.addWidget(self._fsae_sessions_header)
 
         self._fsae_sessions_container = QVBoxLayout()
         self._fsae_sessions_container.setSpacing(8)
@@ -313,7 +314,7 @@ class AnaSayfaPage(QWidget):
         """Sidebar'dan Ana Sayfa'ya her dönüşte çağrılır — güncel veriyi çeker."""
         self._update_greeting()
         self._update_ai_banner()
-        self._update_recent_sessions()
+        self._update_recent_f125_sessions()
         self._update_recent_fsae_sessions()
 
     def _update_greeting(self) -> None:
@@ -329,7 +330,10 @@ class AnaSayfaPage(QWidget):
         )
         self._ai_banner.setVisible(not configured)
 
-    def _update_recent_sessions(self) -> None:
+    def _update_recent_f125_sessions(self) -> None:
+        sessions = self._vehicle_session_repo.get_all()
+        self._fsae_sessions_header.setText(f"SON F1 25 SESSION'LARI ({len(sessions)})")
+
         while self._sessions_container.count():
             item = self._sessions_container.takeAt(0)
             if item.widget():
@@ -367,12 +371,14 @@ class AnaSayfaPage(QWidget):
         logger.debug("Son session listesi guncellendi: %d kayit gosteriliyor.", min(len(sessions), _MAX_RECENT_SESSIONS))
 
     def _update_recent_fsae_sessions(self) -> None:
+        sessions = self._vehicle_session_repo.get_all()
+        self._fsae_sessions_header.setText(f"SON FSAE SESSION'LARI ({len(sessions)})")
+
         while self._fsae_sessions_container.count():
             item = self._fsae_sessions_container.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
 
-        sessions = self._vehicle_session_repo.get_all()
         if not sessions:
             empty = QFrame()
             empty.setFrameShape(QFrame.Shape.NoFrame)
@@ -412,13 +418,11 @@ class AnaSayfaPage(QWidget):
         silme işi filesystem'i bilmiyor — session_gecmisi_page.py'deki F125
         silme akışıyla aynı sorumluluk ayrımı.
         """
-        reply = QMessageBox.question(
-            self, "FSAE SESSION",
-            "Bu FSAE session'ı ve tüm etiketleme/telemetri verileri kalıcı olarak "
-            "silinecek. Devam edilsin mi?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+        if not confirm(
+        self, "Emin misin?",
+        "Bu FSAE session'ı ve tüm etiketleme/telemetri verileri kalıcı olarak "
+        "silinecek. Devam edilsin mi?",
+        ):
             return
 
         session = self._vehicle_session_repo.get_by_id(session_id)

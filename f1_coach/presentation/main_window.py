@@ -25,8 +25,8 @@ from f1_coach.domain.ports.fsae.channel_mapping_repository import ChannelMapping
 
 from f1_coach.application.f125.coaching_engine import CoachingEngine
 
-from f1_coach.infrastructure.storage.repositories.f125.sqlite_car_setup_repository import (
-    SQLiteCarSetupRepository,
+from f1_coach.infrastructure.storage.repositories.fsae.sqlite_mapping_profile_repository import (
+    SQLiteMappingProfileRepository,
 )
 from f1_coach.infrastructure.logging.logger import get_logger
 from f1_coach.infrastructure.ai.adapter_factory import create_ai_adapter
@@ -71,6 +71,7 @@ class MainWindow(QMainWindow):
 
         vehicle_session_repo: VehicleSessionRepository,
         channel_mapping_repo: ChannelMappingRepository,
+        mapping_profile_repo: SQLiteMappingProfileRepository,
 
     ) -> None:
         super().__init__()
@@ -81,6 +82,7 @@ class MainWindow(QMainWindow):
         self._telemetry_receiver = telemetry_receiver
         self._vehicle_session_repo = vehicle_session_repo
         self._channel_mapping_repo = channel_mapping_repo
+        self._mapping_profile_repo = mapping_profile_repo
 
         self._active_fsae_session_id: int | None = None
 
@@ -204,7 +206,7 @@ class MainWindow(QMainWindow):
         self._fsae_import_page.session_imported.connect(self._on_fsae_session_imported)
         self._page_fsae_import = self._content_stack.addWidget(self._fsae_import_page)
 
-        self._fsae_labeling_page = FSAELabelingPage(self._vehicle_session_repo, self._channel_mapping_repo)
+        self._fsae_labeling_page = FSAELabelingPage(self._vehicle_session_repo, self._channel_mapping_repo, self._mapping_profile_repo)
         self._fsae_labeling_page.decoding_completed.connect(self._on_fsae_decoding_completed)
         self._page_fsae_labeling = self._content_stack.addWidget(self._fsae_labeling_page)
 

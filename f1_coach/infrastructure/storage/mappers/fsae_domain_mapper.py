@@ -7,8 +7,13 @@ knowledge of SQLAlchemy — these functions carry all the translation logic.
 
 from f1_coach.domain.models.fsae.channel_mapping import ChannelMapping
 from f1_coach.domain.models.fsae.vehicle_session import VehicleSession
-from f1_coach.infrastructure.storage.orm.fsae_tables import ChannelMappingORM, VehicleSessionORM
-
+from f1_coach.domain.models.fsae.mapping_profile import MappingProfile, MappingProfileEntry
+from f1_coach.infrastructure.storage.orm.fsae_tables import (
+    ChannelMappingORM,
+    MappingProfileEntryORM,
+    MappingProfileORM,
+    VehicleSessionORM,
+)
 
 # ---------------------------------------------------------------------------
 # VehicleSession
@@ -80,3 +85,52 @@ def channel_mapping_to_orm(domain: ChannelMapping) -> ChannelMappingORM:
     if domain.is_persisted:
         kwargs["id"] = domain.id
     return ChannelMappingORM(**kwargs)
+
+# ---------------------------------------------------------------------------
+# MappingProfile / MappingProfileEntry
+# ---------------------------------------------------------------------------
+
+
+def mapping_profile_to_domain(orm: MappingProfileORM) -> MappingProfile:
+    return MappingProfile(name=orm.name, created_at=orm.created_at, id=orm.id)
+
+
+def mapping_profile_to_orm(domain: MappingProfile) -> MappingProfileORM:
+    kwargs: dict = dict(name=domain.name, created_at=domain.created_at)
+    if domain.is_persisted:
+        kwargs["id"] = domain.id
+    return MappingProfileORM(**kwargs)
+
+
+def mapping_profile_entry_to_domain(orm: MappingProfileEntryORM) -> MappingProfileEntry:
+    return MappingProfileEntry(
+        profile_id=orm.profile_id,
+        can_id=orm.can_id,
+        start_byte=orm.start_byte,
+        bit_length=orm.bit_length,
+        little_endian=orm.little_endian,
+        signed=orm.signed,
+        scale=orm.scale,
+        offset=orm.offset,
+        name=orm.name,
+        unit=orm.unit,
+        id=orm.id,
+    )
+
+
+def mapping_profile_entry_to_orm(domain: MappingProfileEntry) -> MappingProfileEntryORM:
+    kwargs: dict = dict(
+        profile_id=domain.profile_id,
+        can_id=domain.can_id,
+        start_byte=domain.start_byte,
+        bit_length=domain.bit_length,
+        little_endian=domain.little_endian,
+        signed=domain.signed,
+        scale=domain.scale,
+        offset=domain.offset,
+        name=domain.name,
+        unit=domain.unit,
+    )
+    if domain.is_persisted:
+        kwargs["id"] = domain.id
+    return MappingProfileEntryORM(**kwargs)

@@ -25,8 +25,11 @@ from PyQt6.QtWidgets import (
 
 from f1_coach.presentation import theme as theme_module
 from f1_coach.presentation.theme_manager import ThemeManager
+from f1_coach.presentation.confirm_dialog import confirm
+
 from f1_coach.domain.models.session import Session
 from f1_coach.domain.ports.session_repository import SessionRepository
+
 from f1_coach.infrastructure.logging.logger import get_logger
 from f1_coach.infrastructure.storage.parquet_writer import delete_session_files
 
@@ -215,12 +218,10 @@ class SessionGecmisiPage(QWidget):
         self.session_selected.emit(session_id)
 
     def _on_delete_clicked(self, session_id: int) -> None:
-        reply = QMessageBox.question(
+        if not confirm(
             self, "Emin misin?",
             "Bu session ve tüm verileri kalıcı olarak silinecek. Devam edilsin mi?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+        ):
             return
 
         session = self._session_repo.get_by_id(session_id)

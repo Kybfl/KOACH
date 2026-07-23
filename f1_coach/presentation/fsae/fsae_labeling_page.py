@@ -18,34 +18,41 @@ import pandas as pd
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import (
     QCheckBox,
-    QComboBox,
-    QDoubleSpinBox,
     QFormLayout,
     QFrame,
-    QHBoxLayout,
     QHeaderView,
     QLabel,
     QLineEdit,
-    QMessageBox,
     QPushButton,
-    QSpinBox,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
     QWidget,
     QScrollArea,
+    QHBoxLayout,
 )
+
+from f1_coach.application.fsae.mapping_profile_applier import apply_profile_entries
 from f1_coach.application.fsae.channel_decoder import decode_telemetry
+
+from f1_coach.domain.models.fsae.mapping_profile import MappingProfile, MappingProfileEntry
+from f1_coach.domain.ports.fsae.mapping_profile_repository import MappingProfileRepository
 from f1_coach.domain.models.fsae.channel_mapping import ChannelMapping
 from f1_coach.domain.models.fsae.vehicle_session import VehicleSession
 from f1_coach.domain.ports.fsae.channel_mapping_repository import ChannelMappingRepository
 from f1_coach.domain.ports.fsae.vehicle_session_repository import VehicleSessionRepository
+
 from f1_coach.infrastructure.logging.logger import get_logger
 from f1_coach.infrastructure.storage.fsae.parquet_writer import (
     raw_can_frames_from_dataframe,
     read_raw_can_frames,
     write_decoded_telemetry,
 )
+
+
+from f1_coach.presentation.confirm_dialog import notify
+from f1_coach.presentation.fsae.profile_picker_dialog import pick_profile
+from f1_coach.presentation.text_prompt_dialog import prompt_text
 from f1_coach.presentation import theme as theme_module
 from f1_coach.presentation.theme_manager import ThemeManager
 from f1_coach.presentation.no_scroll_widgets import (
@@ -81,14 +88,17 @@ class FSAELabelingPage(QWidget):
         self,
         vehicle_session_repo: VehicleSessionRepository,
         channel_mapping_repo: ChannelMappingRepository,
+        mapping_profile_repo: MappingProfileRepository,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self._session_repo = vehicle_session_repo
         self._mapping_repo = channel_mapping_repo
+        self._profile_repo = mapping_profile_repo
         self._current_session: VehicleSession | None = None
         self._raw_frames_df: pd.DataFrame | None = None
         self._mappings: list[ChannelMapping] = []
+        self._last_profile_load_mappings: list[ChannelMapping] = []
 
         outer_layout = QVBoxLayout(self)
         outer_layout.setContentsMargins(0, 0, 0, 0)
@@ -125,6 +135,39 @@ class FSAELabelingPage(QWidget):
         self._ids_table.hide()
         self._ids_table.cellClicked.connect(self._on_id_table_clicked)
         layout.addWidget(self._ids_table)
+
+        # --- Profil yükleme/kaydetme ---
+        self._profile_section_label = QLabel("ETİKETLEME PROFİLİ")
+        self._profile_section_label.setStyleSheet(f"color: {theme_module.TEXT_SECONDARY}; font-size: 11px; font-weight: 600;")
+        self._profile_section_label.hide()
+        layout.addWidget(self._profile_section_label)
+
+        self._profile_row_frame = QFrame()
+        profile_row = QHBoxLayout(self._profile_row_frame)
+        profile_row.setContentsMargins(0, 0, 0, 0)
+
+        self._load_profile_button = QPushButton("Profilden Yükle")
+        self._load_profile_button.setObjectName("PrimaryButton")
+        self._load_profile_button.clicked.connect(self._on_load_profile)
+        profile_row.addWidget(self._load_profile_button)
+
+        self._save_profile_button = QPushButton("Profil Olarak Kaydet")
+        self._save_profile_button.setObjectName("PrimaryButton")
+        self._save_profile_button.clicked.connect(self._on_save_profile)
+        profile_row.addWidget(self._save_profile_button)
+
+        self._undo_profile_load_button = QPushButton("Son Yüklemeyi Geri Al")
+        self._undo_profile_load_button.setObjectName("PrimaryButton")
+        self._undo_profile_load_button.clicked.connect(self._on_undo_profile_load)
+        self._undo_profile_load_button.hide()
+        profile_row.addWidget(self._undo_profile_load_button)
+
+        self._profile_status_label = QLabel("")
+        self._profile_status_label.setWordWrap(True)
+        profile_row.addWidget(self._profile_status_label, stretch=1)
+
+        self._profile_row_frame.hide()
+        layout.addWidget(self._profile_row_frame)
 
         # --- Yeni kanal ekleme formu ---
         self._form_label = QLabel("YENİ KANAL EKLE")
@@ -243,11 +286,14 @@ class FSAELabelingPage(QWidget):
         self._mappings = self._mapping_repo.get_by_session(session.id)
         self._refresh_mappings_table()
 
+        self._last_profile_load_mappings = []
+        self._undo_profile_load_button.hide()
+
         self._empty_label.hide()
         for widget in (
             self._ids_label, self._ids_table, self._form_label, self._form_frame,
             self._mappings_label, self._mappings_table, self._remove_mapping_button,
-            self._decode_button,
+            self._decode_button, self._profile_section_label, self._profile_row_frame
         ):
             widget.show()
         self._status_label.hide()
@@ -284,18 +330,20 @@ class FSAELabelingPage(QWidget):
     # ------------------------------------------------------------------
 
     def _on_add_mapping(self) -> None:
+        self._clear_profile_load_undo_state()
+    
         if self._current_session is None:
             return
 
         try:
             can_id = _parse_can_id(self._can_id_input.text())
         except ValueError:
-            QMessageBox.warning(self, "Geçersiz CAN ID", "CAN ID '0x123' ya da '291' formatında olmalı.")
+            notify(self, "Geçersiz CAN ID", "CAN ID '0x123' ya da '291' formatında olmalı.")
             return
 
         name = self._name_input.text().strip()
         if not name:
-            QMessageBox.warning(self, "İsim eksik", "Kanal için bir isim girmelisin.")
+            notify(self, "İsim eksik", "Kanal için bir isim girmelisin.")
             return
 
         mapping = ChannelMapping(
@@ -317,6 +365,8 @@ class FSAELabelingPage(QWidget):
         self._unit_input.clear()
 
     def _on_remove_selected_mapping(self) -> None:
+        self._clear_profile_load_undo_state()
+
         row = self._mappings_table.currentRow()
         if row < 0 or row >= len(self._mappings):
             return
@@ -355,10 +405,12 @@ class FSAELabelingPage(QWidget):
     # ------------------------------------------------------------------
 
     def _on_decode(self) -> None:
+        self._clear_profile_load_undo_state()
+
         if self._current_session is None or self._raw_frames_df is None:
             return
         if not self._mappings:
-            QMessageBox.warning(self, "Kanal yok", "Çözümlemeden önce en az bir kanal tanımlamalısın.")
+            notify(self, "Kanal yok", "Çözümlemeden önce en az bir kanal tanımlamalısın.")
             return
 
         for mapping in self._mappings:
@@ -392,3 +444,105 @@ class FSAELabelingPage(QWidget):
             self._current_session.id, len(points), distinct_channels,
         )
         self.decoding_completed.emit(self._current_session.id)
+
+    def _on_load_profile(self) -> None:
+        if self._current_session is None or self._raw_frames_df is None:
+            return
+
+        profiles = self._profile_repo.get_all_profiles()
+        if not profiles:
+            notify(self, "Profil yok", "Henüz kaydedilmiş bir etiketleme profili yok.")
+            return
+
+        profile = pick_profile(self, profiles)
+        if profile is None:
+            return
+
+        entries = self._profile_repo.get_entries(profile.id)
+        available_ids = set(self._raw_frames_df["can_id"].unique().tolist())
+
+        new_mappings = apply_profile_entries(
+            session_id=self._current_session.id,
+            existing_mappings=self._mappings,
+            profile_entries=entries,
+            available_can_ids=available_ids,
+        )
+        self._mappings.extend(new_mappings)
+        self._last_profile_load_mappings = new_mappings
+        self._refresh_mappings_table()
+
+        self._profile_status_label.setStyleSheet(f"color: {theme_module.GREEN}; font-size: 12px;")
+        self._profile_status_label.setText(
+            f"✓ \"{profile.name}\" profilinden {len(new_mappings)} kanal otomatik dolduruldu."
+        )
+
+        if new_mappings:
+            self._undo_profile_load_button.setText(f"Son Yüklemeyi Geri Al ({len(new_mappings)} kanal)")
+            self._undo_profile_load_button.show()
+        else:
+            self._undo_profile_load_button.hide()
+
+    def _on_save_profile(self) -> None:
+        if not self._mappings:
+            notify(self, "Kanal yok", "Kaydetmeden önce en az bir kanal tanımlamalısın.")
+            return
+
+        name = prompt_text(self, "Profil Olarak Kaydet", "Profil adı:")
+        if name is None:
+            return
+        if not name:
+            notify(self, "İsim eksik", "Profil için bir isim girmelisin.")
+            return
+
+        existing = next(
+            (p for p in self._profile_repo.get_all_profiles() if p.name.lower() == name.lower()), None
+        )
+        profile = existing or MappingProfile(name=name)
+        self._profile_repo.save_profile(profile)
+
+        entries = [
+            MappingProfileEntry(
+                profile_id=profile.id,
+                can_id=m.can_id, start_byte=m.start_byte, bit_length=m.bit_length,
+                little_endian=m.little_endian, signed=m.signed, scale=m.scale,
+                offset=m.offset, name=m.name, unit=m.unit,
+            )
+            for m in self._mappings
+        ]
+        self._profile_repo.replace_entries(profile.id, entries)
+
+        self._profile_status_label.setStyleSheet(f"color: {theme_module.GREEN}; font-size: 12px;")
+        self._profile_status_label.setText(f"✓ \"{profile.name}\" profili {len(entries)} kanalla kaydedildi.")
+
+    def _on_undo_profile_load(self) -> None:
+        """Son 'Profilden Yükle' işleminde eklenen kanalların TAMAMINI kaldırır.
+
+        Yalnızca henüz 'Kaydet ve Çözümle' ile kalıcı hale getirilmemiş
+        (id=-1) mapping'ler için güvenlidir — bu yüzden manuel ekleme/silme
+        ya da decode sonrası bu buton otomatik gizlenip sıfırlanıyor (bkz.
+        _clear_profile_load_undo_state), yanlışlıkla eski bir yüklemeyi geri
+        almayı önlemek için.
+        """
+        to_remove_ids = {id(m) for m in self._last_profile_load_mappings}
+        removed_count = len(self._last_profile_load_mappings)
+        self._mappings = [m for m in self._mappings if id(m) not in to_remove_ids]
+        self._refresh_mappings_table()
+
+        self._profile_status_label.setStyleSheet(f"color: {theme_module.TEXT_SECONDARY}; font-size: 12px;")
+        self._profile_status_label.setText(f"↩ Profilden gelen {removed_count} kanal geri alındı.")
+
+        self._clear_profile_load_undo_state()
+
+    def _clear_profile_load_undo_state(self) -> None:
+        """Geri al butonunu gizler ve takip listesini sıfırlar.
+
+        Manuel bir ekleme/silme ya da decode işleminden sonra 'son yükleme'
+        kavramı artık tutarsız hale geleceği için (örn. kullanıcı elle bir
+        kanal daha eklerse, geri alma yalnızca profil kanallarını mı yoksa
+        hepsini mi kaldıracak belirsizleşir) — bu yüzden her kullanıcı
+        etkileşiminde temizleniyor, yalnızca yükleme sonrası ilk aksiyon
+        için geçerli kalıyor.
+        """
+        self._last_profile_load_mappings = []
+        self._undo_profile_load_button.hide()
+        self._profile_status_label.setText("")

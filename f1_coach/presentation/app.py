@@ -15,6 +15,9 @@ from pathlib import Path
 from PyQt6.QtWidgets import QApplication
 from f1_coach.infrastructure.logging.logger import get_logger
 from f1_coach.infrastructure.storage.orm.database import init_db
+from f1_coach.infrastructure.storage.repositories.fsae.sqlite_mapping_profile_repository import (
+    SQLiteMappingProfileRepository,
+)
 from f1_coach.infrastructure.storage.repositories.f125.sqlite_car_setup_repository import (
     SQLiteCarSetupRepository,
 )
@@ -75,6 +78,7 @@ def run() -> None:
     lap_repo = SQLiteLapRepository()
     car_setup_repo = SQLiteCarSetupRepository()
     vehicle_session_repo = SQLiteVehicleSessionRepository()
+    mapping_profile_repo = SQLiteMappingProfileRepository()
     telemetry_receiver = TelemetryReceiver(session_repo, lap_repo, car_setup_repo)    
     channel_mapping_repo = SQLiteChannelMappingRepository()
 
@@ -85,7 +89,8 @@ def run() -> None:
         car_setup_repo, 
         telemetry_receiver,
         vehicle_session_repo,
-        channel_mapping_repo)    
+        channel_mapping_repo,
+        mapping_profile_repo)    
     window.show()
 
     sys.exit(app.exec())
